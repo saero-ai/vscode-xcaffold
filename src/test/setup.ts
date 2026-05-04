@@ -22,7 +22,12 @@ mock('vscode', {
     }),
   },
   Range: class {
-    constructor(public startLine: number, public startCol: number, public endLine: number, public endCol: number) {}
+    public start: { line: number; character: number };
+    public end: { line: number; character: number };
+    constructor(startLine: number, startCol: number, endLine: number, endCol: number) {
+      this.start = { line: startLine, character: startCol };
+      this.end = { line: endLine, character: endCol };
+    }
   },
   Diagnostic: class {
     constructor(public range: any, public message: string, public severity: number) {}
