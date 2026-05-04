@@ -10,9 +10,17 @@ import { XcfIndex, parseFrontmatter } from './xcfIndex';
 import { StatusBarProvider } from './statusBarProvider';
 import { runInitWizard } from './initWizardProvider';
 import { runImportPicker } from './importPickerProvider';
+import { CliDataSource } from './webview/dataSource';
+import { DiffPreviewProvider } from './diffPreviewProvider';
+import { FidelityProvider } from './fidelityProvider';
+import { StatusDashProvider } from './statusDashProvider';
+import { SchemaViewerProvider } from './schemaViewerProvider';
 
 /** Debounce timeout for xcfIndex refresh (ms). */
 const INDEX_DEBOUNCE_MS = 500;
+
+/** Module-scoped for deactivate cleanup */
+let _diffPreview: DiffPreviewProvider | undefined;
 
 /**
  * buildXcfIndex scans all workspace .xcf files and populates the index.
@@ -118,8 +126,9 @@ function registerCommands(
   treeProvider: XcaffoldTreeProvider,
   scheduleIndexRefresh: () => void,
   workspaceFolderPath: string | undefined,
-  statusBar: StatusBarProvider
-): { refreshCommand: vscode.Disposable; graphCommand: vscode.Disposable; initWizardCommand: vscode.Disposable; importPickerCommand: vscode.Disposable; diffCommand: vscode.Disposable } {
+  statusBar: StatusBarProvider,
+  dataSource: CliDataSource
+): { refreshCommand: vscode.Disposable; graphCommand: vscode.Disposable; initWizardCommand: vscode.Disposable; importPickerCommand: vscode.Disposable; diffCommand: vscode.Disposable; fidelityCommand: vscode.Disposable; statusDashCommand: vscode.Disposable; schemaViewerCommand: vscode.Disposable } {
   const refreshCommand = vscode.commands.registerCommand('xcaffold.refreshExplorer', () => {
     treeProvider.refresh();
     scheduleIndexRefresh();
@@ -165,16 +174,90 @@ function registerCommands(
     }
   );
 
+  // Phase 3: Webview commands
+  let diffPreview: DiffPreviewProvider | undefined;
+  let fidelityProvider: FidelityProvider | undefined;
+  let statusDashProvider: StatusDashProvider | undefined;
+  let schemaViewerProvider: SchemaViewerProvider | undefined;
+
   const diffCommand = vscode.commands.registerCommand(
     'xcaffold.diff',
-    async () => {
-      vscode.window.showInformationMessage(
-        'xcaffold: Diff preview will be available in a future update.'
-      );
-    }
+    () => {
+      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsFolder) {
+        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
+        return;
+      }
+      if (!diffPreview) {
+        diffPreview = new DiffPreviewProvider(
+          context.extensionUri,
+          dataSource,
+          wsFolder,
+        );
+      }
+      _diffPreview = diffPreview;
+      diffPreview.show();
+    },
   );
 
-  return { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand };
+  const fidelityCommand = vscode.commands.registerCommand(
+    'xcaffold.fidelity',
+    () => {
+      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsFolder) {
+        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
+        return;
+      }
+      if (!fidelityProvider) {
+        fidelityProvider = new FidelityProvider(
+          context.extensionUri,
+          dataSource,
+          wsFolder,
+        );
+      }
+      fidelityProvider.show();
+    },
+  );
+
+  const statusDashCommand = vscode.commands.registerCommand(
+    'xcaffold.statusDash',
+    () => {
+      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsFolder) {
+        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
+        return;
+      }
+      if (!statusDashProvider) {
+        statusDashProvider = new StatusDashProvider(
+          context.extensionUri,
+          dataSource,
+          wsFolder,
+        );
+      }
+      statusDashProvider.show();
+    },
+  );
+
+  const schemaViewerCommand = vscode.commands.registerCommand(
+    'xcaffold.schemaViewer',
+    () => {
+      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsFolder) {
+        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
+        return;
+      }
+      if (!schemaViewerProvider) {
+        schemaViewerProvider = new SchemaViewerProvider(
+          context.extensionUri,
+          dataSource,
+          wsFolder,
+        );
+      }
+      schemaViewerProvider.promptAndShow();
+    },
+  );
+
+  return { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, fidelityCommand, statusDashCommand, schemaViewerCommand };
 }
 
 /**
@@ -228,10 +311,15 @@ export async function activate(
   const statusBar = new StatusBarProvider();
   initStatusBar(cli, workspaceFolderPath || '', statusBar);
 
-  // 7. Register custom commands
-  const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand } = registerCommands(context, cli, treeProvider, scheduleIndexRefresh, workspaceFolderPath, statusBar);
+  // 7. Initialize webview data source
+  const dataSource = new CliDataSource(
+    (args, cwd) => cli.run(args, cwd),
+  );
 
-  // 8. Add to subscriptions for cleanup
+  // 8. Register custom commands
+  const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, fidelityCommand, statusDashCommand, schemaViewerCommand } = registerCommands(context, cli, treeProvider, scheduleIndexRefresh, workspaceFolderPath, statusBar, dataSource);
+
+  // 9. Add to subscriptions for cleanup
   context.subscriptions.push(
     diagnosticProvider,
     commandProvider,
@@ -244,6 +332,9 @@ export async function activate(
     initWizardCommand,
     importPickerCommand,
     diffCommand,
+    fidelityCommand,
+    statusDashCommand,
+    schemaViewerCommand,
   );
 }
 
@@ -251,5 +342,8 @@ export async function activate(
  * deactivate is called when the extension is disabled.
  */
 export function deactivate() {
+  if (_diffPreview) {
+    _diffPreview.cleanupTempDirs();
+  }
   disposeOutputChannel();
 }

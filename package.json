@@ -82,7 +82,22 @@
       },
       {
         "command": "xcaffold.diff",
-        "title": "xcaffold: Preview Changes (Diff)",
+        "title": "xcaffold: Diff Preview",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.fidelity",
+        "title": "xcaffold: Fidelity Report",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.statusDash",
+        "title": "xcaffold: Status Dashboard",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.schemaViewer",
+        "title": "xcaffold: Schema Viewer",
         "category": "xcaffold"
       }
     ],

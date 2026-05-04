@@ -31,9 +31,24 @@ mock('vscode', {
       hide: () => {},
       dispose: () => {},
     }),
+    createWebviewPanel: (viewType: string, title: string, showOptions: any, options: any) => ({
+      webview: {
+        html: '',
+        cspSource: 'https://webview-csp-source',
+        asWebviewUri: (uri: any) => uri,
+        postMessage: async () => true,
+        onDidReceiveMessage: (callback: any) => ({ dispose: () => {} }),
+      },
+      reveal: () => {},
+      dispose: () => {},
+      onDidDispose: (callback: any, thisArg?: any, disposables?: any[]) => ({ dispose: () => {} }),
+      title: title,
+      visible: true,
+    }),
   },
   commands: {
     registerCommand: (id: string, callback: any) => ({ dispose: () => {} }),
+    executeCommand: async () => {},
   },
   workspace: {
     workspaceFolders: undefined,
@@ -77,8 +92,12 @@ mock('vscode', {
     }),
   },
   Uri: {
-    file: (path: string) => ({ fsPath: path, scheme: 'file', path }),
-    parse: (str: string) => ({ fsPath: str, scheme: 'file', path: str }),
+    file: (p: string) => ({ fsPath: p, scheme: 'file', path: p }),
+    parse: (s: string) => ({ fsPath: s, scheme: 'file', path: s }),
+    joinPath: (base: any, ...segments: string[]) => {
+      const joined = [base.fsPath || base.path, ...segments].join('/');
+      return { fsPath: joined, scheme: 'file', path: joined };
+    },
   },
   StatusBarAlignment: { Left: 1, Right: 2 },
   ThemeColor: class {
