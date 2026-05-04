@@ -2,16 +2,28 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "oneOf": [
     {
+      "additionalProperties": false,
       "properties": {
         "api-version": {
-          "const": "xcaffold/v1"
+          "enum": [
+            "xcaffold/v1",
+            "workflow/v1"
+          ],
+          "type": "string"
         },
         "assertions": {
           "description": "Policy assertion IDs evaluated post-compilation.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "background": {
           "description": "Runs the agent in background mode without interactive prompts.",
@@ -35,18 +47,26 @@
         },
         "disallowed-tools": {
           "description": "Tools explicitly denied to this agent.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "effort": {
           "description": "Reasoning effort level hint for the model provider.",
           "type": "string"
         },
         "hooks": {
+          "additionalProperties": true,
           "description": "Inline lifecycle hook definitions for this agent.",
-          "type": "string"
+          "type": "object"
         },
         "initial-prompt": {
           "description": "System prompt prepended to every conversation.",
@@ -61,25 +81,40 @@
         },
         "max-turns": {
           "description": "Maximum conversation turns before the agent exits.",
-          "type": "string"
+          "type": "integer"
         },
         "mcp": {
           "description": "MCP server resource IDs available to this agent.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "mcp-servers": {
+          "additionalProperties": true,
           "description": "Inline MCP server definitions keyed by server name.",
           "type": "object"
         },
         "memory": {
           "description": "Named memory banks attached to this agent.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "model": {
           "description": "LLM model identifier or alias resolved at compile time.",
@@ -100,59 +135,102 @@
         },
         "rules": {
           "description": "Rule resource IDs governing this agent.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "skills": {
           "description": "Skill resource IDs attached to this agent.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "targets": {
+          "additionalProperties": true,
           "description": "Per-provider override configuration keyed by provider name.",
           "type": "object"
         },
         "tools": {
           "description": "Ordered list of tools this agent may invoke.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "user-invocable": {
           "description": "Whether users can invoke this agent directly via slash command.",
           "type": "boolean"
+        },
+        "version": {
+          "const": "1.0"
         }
       },
       "required": [
-        "api-version",
         "kind",
         "name"
       ],
       "type": "object"
     },
     {
+      "additionalProperties": false,
       "properties": {
         "agents": {
           "description": "Agent resource IDs to include in this blueprint.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "api-version": {
-          "const": "xcaffold/v1"
+          "enum": [
+            "xcaffold/v1",
+            "workflow/v1"
+          ],
+          "type": "string"
         },
         "contexts": {
           "description": "Context resource IDs to include in this blueprint.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "description": {
           "description": "Human-readable purpose of this blueprint.",
@@ -171,17 +249,31 @@
         },
         "mcp": {
           "description": "MCP server resource IDs to include in this blueprint.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "memory": {
           "description": "Memory resource IDs to include in this blueprint.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "name": {
           "description": "Unique identifier for this blueprint.",
@@ -190,17 +282,31 @@
         },
         "policies": {
           "description": "Policy resource IDs to include in this blueprint.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "rules": {
           "description": "Rule resource IDs to include in this blueprint.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "settings": {
           "description": "Name of the settings block to use.",
@@ -208,38 +314,60 @@
         },
         "skills": {
           "description": "Skill resource IDs to include in this blueprint.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "version": {
+          "const": "1.0"
         },
         "workflows": {
           "description": "Workflow resource IDs to include in this blueprint.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         }
       },
       "required": [
-        "api-version",
         "kind",
         "name"
       ],
       "type": "object"
     },
     {
+      "additionalProperties": false,
       "properties": {
         "api-version": {
-          "const": "xcaffold/v1"
+          "enum": [
+            "xcaffold/v1",
+            "workflow/v1"
+          ],
+          "type": "string"
         },
         "body": {
           "description": "Resource body content (Markdown)",
           "type": "string"
         },
         "default": {
+          "additionalProperties": true,
           "description": "Marks this context as tie-breaker when multiple match the same target.",
-          "type": "string"
+          "type": "object"
         },
         "description": {
           "description": "Human-readable purpose of this context block.",
@@ -255,34 +383,56 @@
         },
         "targets": {
           "description": "Restricts this context to specific provider targets.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "version": {
+          "const": "1.0"
         }
       },
       "required": [
-        "api-version",
         "kind",
         "name"
       ],
       "type": "object"
     },
     {
+      "additionalProperties": false,
       "properties": {
         "api-version": {
-          "const": "xcaffold/v1"
+          "enum": [
+            "xcaffold/v1",
+            "workflow/v1"
+          ],
+          "type": "string"
         },
         "artifacts": {
           "description": "Named subdirectories to copy from xcf/hooks/\u003cname\u003e/ to provider hook dirs.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "events": {
+          "additionalProperties": true,
           "description": "Lifecycle event handlers keyed by event name.",
-          "type": "string"
+          "type": "object"
         },
         "kind": {
           "const": "hooks"
@@ -291,26 +441,40 @@
           "description": "Unique identifier for this hook block.",
           "pattern": "^[a-z0-9-]+$",
           "type": "string"
+        },
+        "version": {
+          "const": "1.0"
         }
       },
       "required": [
-        "api-version",
         "kind",
         "name"
       ],
       "type": "object"
     },
     {
+      "additionalProperties": false,
       "properties": {
         "api-version": {
-          "const": "xcaffold/v1"
+          "enum": [
+            "xcaffold/v1",
+            "workflow/v1"
+          ],
+          "type": "string"
         },
         "args": {
           "description": "Arguments passed to the server command.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "auth-provider-type": {
           "description": "Authentication provider type for remote servers.",
@@ -330,16 +494,25 @@
         },
         "disabled-tools": {
           "description": "Tool names to disable on this MCP server.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "env": {
+          "additionalProperties": true,
           "description": "Environment variables passed to the server process.",
           "type": "object"
         },
         "headers": {
+          "additionalProperties": true,
           "description": "HTTP headers for remote server connections.",
           "type": "object"
         },
@@ -352,6 +525,7 @@
           "type": "string"
         },
         "oauth": {
+          "additionalProperties": true,
           "description": "OAuth configuration key-value pairs for authentication.",
           "type": "object"
         },
@@ -362,19 +536,26 @@
         "url": {
           "description": "URL for remote MCP servers.",
           "type": "string"
+        },
+        "version": {
+          "const": "1.0"
         }
       },
       "required": [
-        "api-version",
         "kind",
         "name"
       ],
       "type": "object"
     },
     {
+      "additionalProperties": false,
       "properties": {
         "api-version": {
-          "const": "xcaffold/v1"
+          "enum": [
+            "xcaffold/v1",
+            "workflow/v1"
+          ],
+          "type": "string"
         },
         "body": {
           "description": "Resource body content (Markdown)",
@@ -391,26 +572,40 @@
           "description": "Unique identifier for this memory entry.",
           "pattern": "^[a-z0-9-]+$",
           "type": "string"
+        },
+        "version": {
+          "const": "1.0"
         }
       },
       "required": [
-        "api-version",
         "kind",
         "name"
       ],
       "type": "object"
     },
     {
+      "additionalProperties": false,
       "properties": {
         "api-version": {
-          "const": "xcaffold/v1"
+          "enum": [
+            "xcaffold/v1",
+            "workflow/v1"
+          ],
+          "type": "string"
         },
         "deny": {
           "description": "Forbidden content or path patterns in compiled output.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "description": {
           "description": "Human-readable purpose of this policy.",
@@ -420,8 +615,9 @@
           "const": "policy"
         },
         "match": {
+          "additionalProperties": true,
           "description": "Filter conditions selecting which resources to evaluate.",
-          "type": "string"
+          "type": "object"
         },
         "name": {
           "description": "Unique identifier for this policy.",
@@ -430,10 +626,17 @@
         },
         "require": {
           "description": "Field constraints applied to matched resources.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "severity": {
           "description": "Violation severity level when the policy fails.",
@@ -455,10 +658,12 @@
             "output"
           ],
           "type": "string"
+        },
+        "version": {
+          "const": "1.0"
         }
       },
       "required": [
-        "api-version",
         "kind",
         "name",
         "severity",
@@ -467,6 +672,7 @@
       "type": "object"
     },
     {
+      "additionalProperties": false,
       "properties": {
         "activation": {
           "description": "Cross-provider activation mode for this rule.",
@@ -484,7 +690,11 @@
           "type": "boolean"
         },
         "api-version": {
-          "const": "xcaffold/v1"
+          "enum": [
+            "xcaffold/v1",
+            "workflow/v1"
+          ],
+          "type": "string"
         },
         "body": {
           "description": "Resource body content (Markdown)",
@@ -500,10 +710,17 @@
             "code-review",
             "cloud-agent"
           ],
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "kind": {
           "const": "rule"
@@ -515,35 +732,51 @@
         },
         "paths": {
           "description": "Glob patterns for path-based activation.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "targets": {
+          "additionalProperties": true,
           "description": "Per-provider override configuration keyed by provider name.",
           "type": "object"
+        },
+        "version": {
+          "const": "1.0"
         }
       },
       "required": [
-        "api-version",
         "kind",
         "name"
       ],
       "type": "object"
     },
     {
+      "additionalProperties": false,
       "properties": {
         "agent": {
+          "additionalProperties": true,
           "description": "Agent configuration object passed through to the provider.",
-          "type": "string"
+          "type": "object"
         },
         "always-thinking-enabled": {
           "description": "Force extended thinking on every turn.",
           "type": "boolean"
         },
         "api-version": {
-          "const": "xcaffold/v1"
+          "enum": [
+            "xcaffold/v1",
+            "workflow/v1"
+          ],
+          "type": "string"
         },
         "attribution": {
           "description": "Enable commit attribution metadata.",
@@ -558,22 +791,37 @@
           "type": "boolean"
         },
         "auto-mode": {
+          "additionalProperties": true,
           "description": "Auto-mode behavior configuration.",
-          "type": "string"
+          "type": "object"
         },
         "available-models": {
           "description": "List of model IDs available for selection.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "claude-md-excludes": {
           "description": "Glob patterns for paths excluded from CLAUDE.md scanning.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "cleanup-period-days": {
           "description": "Days before unused sessions are cleaned up.",
@@ -596,16 +844,19 @@
           "type": "string"
         },
         "enabled-plugins": {
+          "additionalProperties": true,
           "description": "Plugin enable/disable flags keyed by plugin name.",
           "type": "object"
         },
         "env": {
+          "additionalProperties": true,
           "description": "Environment variables injected into agent sessions.",
           "type": "object"
         },
         "hooks": {
+          "additionalProperties": true,
           "description": "Lifecycle hook definitions.",
-          "type": "string"
+          "type": "object"
         },
         "include-git-instructions": {
           "description": "Whether to include git instructions in agent context.",
@@ -619,6 +870,7 @@
           "type": "string"
         },
         "mcp-servers": {
+          "additionalProperties": true,
           "description": "Inline MCP server definitions.",
           "type": "object"
         },
@@ -639,8 +891,9 @@
           "type": "string"
         },
         "permissions": {
+          "additionalProperties": true,
           "description": "Tool permission rules (allow, deny, ask lists).",
-          "type": "string"
+          "type": "object"
         },
         "plans-directory": {
           "description": "Directory for storing plan files.",
@@ -651,40 +904,57 @@
           "type": "boolean"
         },
         "sandbox": {
+          "additionalProperties": true,
           "description": "OS-level process isolation configuration.",
-          "type": "string"
+          "type": "object"
         },
         "skip-dangerous-mode-permission-prompt": {
           "description": "Skip the dangerous mode permission confirmation prompt.",
           "type": "boolean"
         },
         "status-line": {
+          "additionalProperties": true,
           "description": "Status line display configuration.",
-          "type": "string"
+          "type": "object"
+        },
+        "version": {
+          "const": "1.0"
         },
         "worktree": {
+          "additionalProperties": true,
           "description": "Worktree configuration object passed through to the provider.",
-          "type": "string"
+          "type": "object"
         }
       },
       "required": [
-        "api-version",
         "kind",
         "name"
       ],
       "type": "object"
     },
     {
+      "additionalProperties": false,
       "properties": {
         "allowed-tools": {
           "description": "Tools this skill is permitted to use. Skill-specific field.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "api-version": {
-          "const": "xcaffold/v1"
+          "enum": [
+            "xcaffold/v1",
+            "workflow/v1"
+          ],
+          "type": "string"
         },
         "argument-hint": {
           "description": "Hint text shown to the user when invoking the skill.",
@@ -692,17 +962,31 @@
         },
         "artifacts": {
           "description": "Named subdirectories to copy from xcf/skills/\u003cid\u003e/ to provider output.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "assets": {
           "description": "Output artifact files copied to skills/\u003cid\u003e/assets/ at compile time.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "body": {
           "description": "Resource body content (Markdown)",
@@ -718,10 +1002,17 @@
         },
         "examples": {
           "description": "Demonstration files copied to skills/\u003cid\u003e/examples/ at compile time.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "kind": {
           "const": "skill"
@@ -737,19 +1028,34 @@
         },
         "references": {
           "description": "Docs and data files copied to skills/\u003cid\u003e/references/ at compile time.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "scripts": {
           "description": "Executable helper files copied to skills/\u003cid\u003e/scripts/ at compile time.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "targets": {
+          "additionalProperties": true,
           "description": "Per-provider override configuration keyed by provider name.",
           "type": "object"
         },
@@ -757,22 +1063,29 @@
           "description": "Whether users can invoke this skill directly via slash command.",
           "type": "boolean"
         },
+        "version": {
+          "const": "1.0"
+        },
         "when-to-use": {
           "description": "Guidance for the model on when to invoke this skill.",
           "type": "string"
         }
       },
       "required": [
-        "api-version",
         "kind",
         "name"
       ],
       "type": "object"
     },
     {
+      "additionalProperties": false,
       "properties": {
         "api-version": {
-          "const": "xcaffold/v1"
+          "enum": [
+            "xcaffold/v1",
+            "workflow/v1"
+          ],
+          "type": "string"
         },
         "body": {
           "description": "Resource body content (Markdown)",
@@ -793,16 +1106,19 @@
           "description": "Unique identifier for this template within the project.",
           "pattern": "^[a-z0-9-]+$",
           "type": "string"
+        },
+        "version": {
+          "const": "1.0"
         }
       },
       "required": [
-        "api-version",
         "kind",
         "name"
       ],
       "type": "object"
     },
     {
+      "additionalProperties": false,
       "properties": {
         "api-version": {
           "description": "Schema shape discriminator for workflow versioning.",
@@ -829,18 +1145,28 @@
         },
         "steps": {
           "description": "Ordered procedural steps for multi-step workflows.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "targets": {
+          "additionalProperties": true,
           "description": "Per-provider overrides and lowering-strategy directives.",
           "type": "object"
+        },
+        "version": {
+          "const": "1.0"
         }
       },
       "required": [
-        "api-version",
         "kind",
         "name"
       ],

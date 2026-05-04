@@ -35,36 +35,51 @@ func Emit(registry map[string]schema.KindSchema) ([]byte, error) {
 func emitKind(ks schema.KindSchema) map[string]interface{} {
 	properties := map[string]interface{}{
 		"api-version": map[string]interface{}{
-			"const": "xcaffold/v1",
+			"type": "string",
+			"enum": []string{"xcaffold/v1", "workflow/v1"}, // simplistic for now
 		},
 		"kind": map[string]interface{}{
 			"const": ks.Kind,
 		},
+		"version": map[string]interface{}{
+			"const": ks.Version,
+		},
 	}
 
-	required := []string{"api-version", "kind"}
+	required := []string{"kind"} // api-version is often omitted in local manifests
 
 	for _, f := range ks.Fields {
+		if f.YAMLKey == "kind" || f.YAMLKey == "version" {
+			continue
+		}
+
 		prop := map[string]interface{}{
 			"description": f.Description,
 		}
 
-		switch f.XCFType {
-		case "string":
+		switch {
+		case f.XCFType == "string":
 			prop["type"] = "string"
-		case "boolean":
+		case f.XCFType == "boolean":
 			prop["type"] = "boolean"
-		case "integer":
+		case f.XCFType == "int" || f.XCFType == "integer":
 			prop["type"] = "integer"
-		case "map":
+		case f.XCFType == "map":
 			prop["type"] = "object"
-		default:
-			if strings.HasPrefix(f.XCFType, "[]") {
-				prop["type"] = "array"
-				prop["items"] = map[string]interface{}{"type": "string"} // simplistic fallback
-			} else {
-				prop["type"] = "string"
+			prop["additionalProperties"] = true
+		case strings.HasPrefix(f.XCFType, "[]"):
+			// Support FlexStringSlice: can be a string OR an array of strings
+			prop["oneOf"] = []interface{}{
+				map[string]interface{}{"type": "string"},
+				map[string]interface{}{
+					"type":  "array",
+					"items": map[string]interface{}{"type": "string"},
+				},
 			}
+		default:
+			// Fallback for complex types like HookConfig
+			prop["type"] = "object"
+			prop["additionalProperties"] = true
 		}
 
 		if len(f.Enum) > 0 {
@@ -88,8 +103,9 @@ func emitKind(ks schema.KindSchema) map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"type":       "object",
-		"properties": properties,
-		"required":   required,
+		"type":                 "object",
+		"properties":           properties,
+		"required":             required,
+		"additionalProperties": false,
 	}
 }

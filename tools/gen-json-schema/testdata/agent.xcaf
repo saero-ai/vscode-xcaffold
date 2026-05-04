@@ -1,0 +1,8 @@
+---
+kind: agent
+version: "1.0"
+name: test-agent
+description: Minimal agent fixture for schema validation tests
+model: sonnet
+---
+You are a test agent used for JSON Schema validation.
