@@ -9,27 +9,27 @@ export interface ResourceInfo {
   description: string;
 }
 
-export function parseListOutput(stdout: string): Map<string, string[]> {
-  const grouped = new Map<string, string[]>();
+export function parseListOutput(stdout: string): Map<string, ResourceInfo[]> {
+  const lines = stdout.split('\n');
+  const grouped = new Map<string, ResourceInfo[]>();
 
-  // Section header pattern: "AGENTS  (3)" or "MCP SERVERS  (2)"
-  const sectionRe = /^([A-Z][A-Z ]+\S)\s+\(\d+\)/;
-  const nameRe = /^  (\S+)/; // two-space indent = resource name
-
-  let currentKind = '';
-  for (const line of stdout.split('\n')) {
-    const sectionMatch = sectionRe.exec(line);
-    if (sectionMatch) {
-      currentKind = sectionMatch[1];
-      grouped.set(currentKind, []);
+  for (const line of lines) {
+    if (!line.includes('|') || line.startsWith('KIND') || line.startsWith('----')) {
       continue;
     }
-    if (currentKind) {
-      const nameMatch = nameRe.exec(line);
-      if (nameMatch) {
-        grouped.get(currentKind)!.push(nameMatch[1]);
-      }
-    }
+
+    const parts = line.split('|').map(p => p.trim());
+    if (parts.length < 2) continue;
+
+    const info: ResourceInfo = {
+      kind: parts[0],
+      name: parts[1],
+      description: parts[2] || '',
+    };
+
+    const list = grouped.get(info.kind) || [];
+    list.push(info);
+    grouped.set(info.kind, list);
   }
 
   return grouped;
@@ -112,30 +112,16 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
       } else {
         // Child of a kind: list resources
         const resources = grouped.get(element.kind) || [];
-        return resources.map(name => new ResourceTreeItem(
-          name,
+        return resources.map(res => new ResourceTreeItem(
+          res.name,
           element.kind,
           vscode.TreeItemCollapsibleState.None,
-          undefined,
+          res.description,
           this.xcfIndex,
         ));
       }
     } catch (err: any) {
-      const msg: string = err.message ?? '';
-      // Treat any list failure caused by missing project files as a friendly state
-      if (
-        msg.includes('no *.xcf files found') ||
-        msg.includes('no project.xcf') ||
-        msg.includes('parse error') ||
-        (err.exitCode !== undefined && err.exitCode !== 0 && !msg.includes('binary not found'))
-      ) {
-        return [new ResourceTreeItem(
-          'No xcaffold project detected', 'info',
-          vscode.TreeItemCollapsibleState.None,
-          'Create a project.xcf to get started.'
-        )];
-      }
-      return [new ResourceTreeItem('CLI Error: Check output channel', 'error', vscode.TreeItemCollapsibleState.None, msg)];
+      return [new ResourceTreeItem('CLI Error: Check output channel', 'error', vscode.TreeItemCollapsibleState.None, err.message)];
     }
   }
 }

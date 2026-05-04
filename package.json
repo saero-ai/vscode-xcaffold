@@ -6,6 +6,9 @@
   "publisher": "saero-ai",
   "icon": "logo.png",
   "license": "MIT",
+  "xcaffold": {
+    "minCliVersion": "0.5.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/saero-ai/vscode-xcaffold.git"
@@ -19,30 +22,10 @@
   ],
   "activationEvents": [
     "onLanguage:yaml",
-    "onLanguage:xcf",
-    "workspaceContains:**/*.xcf",
-    "onView:xcaffoldExplorer"
+    "workspaceContains:**/*.xcf"
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "languages": [
-      {
-        "id": "xcf",
-        "aliases": ["Xcaffold Manifest", "xcf"],
-        "extensions": [".xcf"],
-        "icon": {
-          "light": "logo.svg",
-          "dark": "logo.svg"
-        }
-      }
-    ],
-    "grammars": [
-      {
-        "language": "xcf",
-        "scopeName": "source.xcf",
-        "path": "./syntaxes/xcf.tmLanguage.json"
-      }
-    ],
     "yaml.schemas": {
       "./schemas/xcaffold-schema.json": "*.xcf"
     },
@@ -78,19 +61,44 @@
         "category": "xcaffold"
       },
       {
-        "command": "xcaffold.init",
-        "title": "xcaffold: Initialize Project",
-        "category": "xcaffold"
-      },
-      {
-        "command": "xcaffold.export",
-        "title": "xcaffold: Export compiled manifests",
-        "category": "xcaffold"
-      },
-      {
         "command": "xcaffold.refreshExplorer",
         "title": "Refresh Explorer",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "xcaffold.validateFile",
+        "title": "xcaffold: Validate Active File",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.initWizard",
+        "title": "xcaffold: Initialize Project (Wizard)",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.importPicker",
+        "title": "xcaffold: Import from Providers (Picker)",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.diff",
+        "title": "xcaffold: Diff Preview",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.fidelity",
+        "title": "xcaffold: Fidelity Report",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.statusDash",
+        "title": "xcaffold: Status Dashboard",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.schemaViewer",
+        "title": "xcaffold: Schema Viewer",
+        "category": "xcaffold"
       }
     ],
     "viewsContainers": {
@@ -120,7 +128,20 @@
         }
       }
     },
+    "snippets": [
+      {
+        "language": "yaml",
+        "path": "./snippets/xcf.json"
+      }
+    ],
     "menus": {
+      "editor/title": [
+        {
+          "command": "xcaffold.validateFile",
+          "when": "resourceExtname == .xcf",
+          "group": "xcaffold@1"
+        }
+      ],
       "view/item/context": [
         {
           "command": "xcaffold.apply",
@@ -143,9 +164,12 @@
     }
   },
   "scripts": {
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "test": "npx ts-node src/test/runTests.ts"
+    "compile": "node esbuild.config.mjs",
+    "compile:production": "node esbuild.config.mjs --production",
+    "watch": "node esbuild.config.mjs --watch",
+    "typecheck": "tsc -p ./ --noEmit",
+    "test": "npx ts-node src/test/runTests.ts",
+    "pretest": "npm run typecheck"
   },
   "keywords": [],
   "author": "",
@@ -154,10 +178,13 @@
   },
   "homepage": "https://github.com/saero-ai/vscode-xcaffold#readme",
   "devDependencies": {
+    "@types/d3": "^7.4.3",
     "@types/mocha": "^10.0.10",
     "@types/mock-require": "^3.0.0",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.9.1",
+    "d3": "^7.9.0",
+    "esbuild": "^0.28.0",
     "mocha": "^11.7.5",
     "mock-require": "^3.0.3",
     "ts-node": "^10.9.2",

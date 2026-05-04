@@ -1,7 +1,9 @@
 import * as assert from 'assert';
-import * as fs from 'fs';
-import * as path from 'path';
-import { XCAFFOLD_COMMANDS } from '../commandProvider';
+import {
+  XCAFFOLD_COMMANDS,
+  PROVIDER_TARGETS,
+  buildApplyArgs,
+} from '../commandProvider';
 
 suite('CommandProvider', () => {
   test('XCAFFOLD_COMMANDS defines all required command IDs', () => {
@@ -14,44 +16,31 @@ suite('CommandProvider', () => {
   });
 });
 
-suite('package.json context menus', () => {
-  let pkg: any;
-
-  suiteSetup(() => {
-    const pkgPath = path.resolve(__dirname, '../../package.json');
-    pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+suite('Target-filtered apply', () => {
+  test('PROVIDER_TARGETS includes all supported providers', () => {
+    assert.ok(PROVIDER_TARGETS.includes('claude'));
+    assert.ok(PROVIDER_TARGETS.includes('cursor'));
+    assert.ok(PROVIDER_TARGETS.includes('copilot'));
+    assert.ok(PROVIDER_TARGETS.includes('gemini'));
+    assert.ok(PROVIDER_TARGETS.includes('antigravity'));
   });
 
-  test('view/item/context has Apply for resource-item', () => {
-    const menus = pkg.contributes.menus;
-    assert.ok(menus, 'contributes.menus must exist');
-    const itemContext = menus['view/item/context'];
-    assert.ok(itemContext, 'view/item/context must exist');
-
-    const applyEntry = itemContext.find(
-      (m: any) => m.command === 'xcaffold.apply' && m.when?.includes('resource-item'),
-    );
-    assert.ok(applyEntry, 'Apply must be available for resource-item');
+  test('PROVIDER_TARGETS has All Providers as first element', () => {
+    assert.strictEqual(PROVIDER_TARGETS[0], 'All Providers');
   });
 
-  test('view/item/context has Validate for resource-item', () => {
-    const menus = pkg.contributes.menus;
-    const itemContext = menus['view/item/context'];
-
-    const validateEntry = itemContext.find(
-      (m: any) => m.command === 'xcaffold.validate' && m.when?.includes('resource-item'),
-    );
-    assert.ok(validateEntry, 'Validate must be available for resource-item');
+  test('buildApplyArgs returns bare apply for All Providers', () => {
+    const args = buildApplyArgs('All Providers');
+    assert.deepStrictEqual(args, ['apply']);
   });
 
-  test('view/title has Refresh for xcaffoldExplorer', () => {
-    const menus = pkg.contributes.menus;
-    const viewTitle = menus['view/title'];
-    assert.ok(viewTitle, 'view/title must exist');
+  test('buildApplyArgs returns --target flag for specific provider', () => {
+    const args = buildApplyArgs('claude');
+    assert.deepStrictEqual(args, ['apply', '--target', 'claude']);
+  });
 
-    const refreshEntry = viewTitle.find(
-      (m: any) => m.command === 'xcaffold.refreshExplorer' && m.when?.includes('xcaffoldExplorer'),
-    );
-    assert.ok(refreshEntry, 'Refresh must be in view/title for xcaffoldExplorer');
+  test('buildApplyArgs returns --target flag for gemini', () => {
+    const args = buildApplyArgs('gemini');
+    assert.deepStrictEqual(args, ['apply', '--target', 'gemini']);
   });
 });

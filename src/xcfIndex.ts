@@ -48,7 +48,7 @@ export function parseFrontmatter(content: string): FrontmatterResult | null {
 
     const kindMatch = kindRe.exec(line);
     if (kindMatch) {
-      kind = kindMatch[1].replace(/^["']|["']$/g, '').trim();
+      kind = kindMatch[1].replace(/^["']|["']$/g, '').trim().toLowerCase();
       continue;
     }
 

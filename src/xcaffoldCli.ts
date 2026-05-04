@@ -1,4 +1,4 @@
-import { spawn, execSync } from 'child_process';
+import { spawn, execFile } from 'child_process';
 import { getOutputChannel } from './outputChannel';
 
 export interface CliResult {
@@ -8,29 +8,64 @@ export interface CliResult {
 }
 
 /**
- * Resolve the full path to the xcaffold binary.
+ * Resolve the full path to the xcaffold binary asynchronously.
  * VS Code's PATH doesn't include shell-managed dirs (go/bin, homebrew, etc.),
  * so we ask the login shell for the resolved path.
  */
-function resolveXcaffoldPath(binaryPath: string): string {
+async function resolveXcaffoldPathAsync(
+  binaryPath: string
+): Promise<string> {
   if (binaryPath !== 'xcaffold') {
     return binaryPath; // user explicitly configured a full path
   }
-  try {
-    const shell = process.env.SHELL || '/bin/zsh';
-    const resolved = execSync(`${shell} -l -c 'which xcaffold'`, { timeout: 3000 }).toString().trim();
-    if (resolved) return resolved;
-  } catch {
-    // fall through to default
-  }
-  return binaryPath;
+  const shell = process.env.SHELL || '/bin/zsh';
+  return new Promise<string>((resolve) => {
+    execFile(
+      shell,
+      ['-l', '-c', 'which xcaffold'],
+      { timeout: 3000 },
+      (err, stdout) => {
+        const resolved = stdout?.toString().trim();
+        if (err || !resolved) {
+          resolve(binaryPath); // fall back to bare name
+        } else {
+          resolve(resolved);
+        }
+      }
+    );
+  });
 }
 
 export class XcaffoldCli {
-  private readonly resolvedPath: string;
+  private resolvedPath: string;
+  private initPromise: Promise<void> | undefined;
 
   constructor(private readonly binaryPath: string = 'xcaffold') {
-    this.resolvedPath = resolveXcaffoldPath(binaryPath);
+    this.resolvedPath = binaryPath; // start with uncached value
+  }
+
+  /**
+   * init resolves the binary path asynchronously. Must be called
+   * once during activation. Subsequent calls are no-ops.
+   */
+  async init(): Promise<void> {
+    if (!this.initPromise) {
+      this.initPromise = resolveXcaffoldPathAsync(this.binaryPath).then(
+        (resolved) => {
+          this.resolvedPath = resolved;
+        }
+      );
+    }
+    return this.initPromise;
+  }
+
+  /**
+   * invalidateCache forces re-resolution on next init() call.
+   * Call this when the user changes the binaryPath config.
+   */
+  invalidateCache(): void {
+    this.initPromise = undefined;
+    this.resolvedPath = this.binaryPath;
   }
 
   /**
@@ -62,7 +97,7 @@ export class XcaffoldCli {
         if (exitCode === 0) {
           resolve({ exitCode, stdout, stderr });
         } else {
-          const err: any = new Error(`xcaffold exited ${exitCode}: ${stderr.trim() || stdout.trim()}`);
+          const err: any = new Error(`xcaffold exited ${exitCode}: ${stderr.trim()}`);
           err.exitCode = exitCode;
           err.stdout = stdout;
           err.stderr = stderr;
@@ -72,7 +107,12 @@ export class XcaffoldCli {
 
       proc.on('error', (err) => {
         if ((err as any).code === 'ENOENT') {
-          reject(new Error(`xcaffold binary not found at '${this.resolvedPath}'. Please ensure it is installed and on your PATH.`));
+          reject(
+            new Error(
+              `xcaffold binary not found at '${this.resolvedPath}'. ` +
+              'Please ensure it is installed and on your PATH.'
+            )
+          );
         } else {
           reject(err);
         }
