@@ -113,19 +113,6 @@ export function detectReferenceContext(
 }
 
 /**
- * kindToIndexKey converts a singular kind name to the uppercase plural
- * format used by XcfIndex (which stores keys from xcaffold list output).
- */
-function kindToIndexKey(kind: string): string {
-  const map: Record<string, string> = {
-    skill: 'SKILLS',
-    rule: 'RULES',
-    agent: 'AGENTS',
-  };
-  return map[kind] || kind.toUpperCase() + 'S';
-}
-
-/**
  * resolveDefinition attempts to find the definition file and line for
  * a word at a given position. Uses kind-aware context when available,
  * falls back to name-only lookup.
@@ -146,11 +133,10 @@ export function resolveDefinition(
     return null;
   }
 
-  // Try kind-aware lookup first
+  // Try kind-aware lookup first (refKind is singular lowercase: skill, rule, agent)
   const refCtx = detectReferenceContext(lines, lineNumber);
   if (refCtx) {
-    const indexKey = kindToIndexKey(refCtx.refKind);
-    const entry = index.resolve(indexKey, word);
+    const entry = index.resolve(refCtx.refKind, word);
     if (entry) {
       return { uri: entry.fileUri, line: entry.nameLine };
     }

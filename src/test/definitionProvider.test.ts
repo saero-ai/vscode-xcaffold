@@ -124,7 +124,7 @@ suite('DefinitionProvider', () => {
     test('resolves skill reference via xcfIndex', () => {
       const index = new XcfIndex();
       index.setEntry({
-        kind: 'SKILLS',
+        kind: 'skill',
         name: 'tdd',
         fileUri: '/workspace/xcf/skills/tdd.xcf',
         nameLine: 3,
@@ -146,7 +146,7 @@ suite('DefinitionProvider', () => {
     test('resolves agent reference with uppercase index key', () => {
       const index = new XcfIndex();
       index.setEntry({
-        kind: 'AGENTS',
+        kind: 'agent',
         name: 'developer',
         fileUri: '/workspace/xcf/agents/developer.xcf',
         nameLine: 2,
@@ -164,7 +164,7 @@ suite('DefinitionProvider', () => {
     test('falls back to resolveByName when kind-specific lookup misses', () => {
       const index = new XcfIndex();
       index.setEntry({
-        kind: 'SKILLS',
+        kind: 'skill',
         name: 'tdd',
         fileUri: '/workspace/xcf/skills/tdd.xcf',
         nameLine: 3,

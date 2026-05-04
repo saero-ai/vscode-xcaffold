@@ -41,6 +41,7 @@ export function buildCsp(cspSource: string, nonce: string): string {
 export interface WrapHtmlOptions {
   title: string;
   cspSource: string;
+  nonce: string;
   body: string;
   scripts: Array<{ uri: string }>;
   styles: string;
@@ -117,7 +118,7 @@ const BASE_STYLES = `
  * wrapHtml generates a complete HTML document for a webview panel.
  */
 export function wrapHtml(options: WrapHtmlOptions): string {
-  const nonce = generateNonce();
+  const nonce = options.nonce;
   const csp = buildCsp(options.cspSource, nonce);
 
   const scriptTags = options.scripts
@@ -199,21 +200,24 @@ export abstract class BaseWebview implements vscode.Disposable {
     if (!this.panel) return;
 
     const webview = this.panel.webview;
+    const nonce = generateNonce();
+
     // Show loading state
     webview.html = wrapHtml({
       title: this.getTitle(),
       cspSource: webview.cspSource,
+      nonce,
       body: '<div class="loading">Loading...</div>',
       scripts: this.getScriptUris(webview),
       styles: this.getStyles(),
     });
 
     try {
-      const nonce = generateNonce();
       const body = await this.getHtmlBody(webview, nonce);
       webview.html = wrapHtml({
         title: this.getTitle(),
         cspSource: webview.cspSource,
+        nonce,
         body,
         scripts: this.getScriptUris(webview),
         styles: this.getStyles(),
@@ -222,6 +226,7 @@ export abstract class BaseWebview implements vscode.Disposable {
       webview.html = wrapHtml({
         title: this.getTitle(),
         cspSource: webview.cspSource,
+        nonce,
         body: `<div class="error">Error: ${escapeHtml(err.message)}</div>`,
         scripts: [],
         styles: this.getStyles(),

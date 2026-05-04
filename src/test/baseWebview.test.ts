@@ -40,6 +40,7 @@ suite('BaseWebview utilities', () => {
       const html = wrapHtml({
         title: 'Test',
         cspSource: 'https://webview-csp-source',
+        nonce: 'test-nonce-abc123',
         body: '<div>hello</div>',
         scripts: [],
         styles: '',
@@ -53,6 +54,7 @@ suite('BaseWebview utilities', () => {
       const html = wrapHtml({
         title: 'Test',
         cspSource: 'https://webview-csp-source',
+        nonce: 'test-nonce-abc123',
         body: '',
         scripts: [],
         styles: '',
@@ -65,6 +67,7 @@ suite('BaseWebview utilities', () => {
       const html = wrapHtml({
         title: 'Test',
         cspSource: 'https://webview-csp-source',
+        nonce: 'test-nonce-abc123',
         body: '',
         scripts: [{ uri: 'https://file+.vscode/d3.js' }],
         styles: '',
@@ -77,6 +80,7 @@ suite('BaseWebview utilities', () => {
       const html = wrapHtml({
         title: 'Test',
         cspSource: 'https://webview-csp-source',
+        nonce: 'test-nonce-abc123',
         body: '',
         scripts: [],
         styles: '.my-class { color: red; }',
@@ -88,6 +92,7 @@ suite('BaseWebview utilities', () => {
       const html = wrapHtml({
         title: 'Test',
         cspSource: 'https://webview-csp-source',
+        nonce: 'test-nonce-abc123',
         body: '',
         scripts: [],
         styles: '',
