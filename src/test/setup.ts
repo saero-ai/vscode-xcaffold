@@ -42,6 +42,17 @@ mock('vscode', {
   Disposable: {
     from: (...disposables: any[]) => ({ dispose: () => {} }),
   },
+  TreeItem: class {
+    constructor(public label: string, public collapsibleState: number) {}
+    public tooltip: string = '';
+    public contextValue: string = '';
+  },
+  TreeItemCollapsibleState: { None: 0, Collapsed: 1, Expanded: 2 },
+  EventEmitter: class {
+    private _event = () => {};
+    get event() { return this._event; }
+    fire() {}
+  },
   languages: {
     createDiagnosticCollection: (name: string) => ({
       name,
