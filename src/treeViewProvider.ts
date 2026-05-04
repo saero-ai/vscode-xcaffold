@@ -113,10 +113,10 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
         // Child of a kind: list resources
         const resources = grouped.get(element.kind) || [];
         return resources.map(res => new ResourceTreeItem(
-          typeof res === 'string' ? res : res.name,
+          res.name,
           element.kind,
           vscode.TreeItemCollapsibleState.None,
-          undefined,
+          res.description,
           this.xcfIndex,
         ));
       }

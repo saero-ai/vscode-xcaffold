@@ -65,12 +65,14 @@
     "description": "xcaffold MCP server resource",
     "scope": "yaml",
     "body": [
+      "---",
       "kind: mcp",
       "version: \"1.0\"",
       "name: ${1:server-name}",
       "description: \"${2:MCP server description}\"",
       "command: ${3:npx}",
       "args: [${4:@modelcontextprotocol/server}]",
+      "---",
       "${0}"
     ]
   }
