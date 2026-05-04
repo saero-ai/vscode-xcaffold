@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { XcaffoldCli } from './xcaffoldCli';
+import { parseValidateOutput } from './diagnosticProvider';
 
 export interface CommandDef {
   id: string;
@@ -29,6 +30,58 @@ export function buildApplyArgs(selection: string): string[] {
     return ['apply'];
   }
   return ['apply', '--target', selection];
+}
+
+/**
+ * Diagnostic type for test environments where vscode.Diagnostic may be mocked.
+ */
+export interface FileDiagnostic {
+  line: number;
+  col: number;
+  message: string;
+}
+
+/**
+ * filterDiagnosticsForFile runs parseValidateOutput and filters results
+ * to only those matching the given file path's basename.
+ */
+export function filterDiagnosticsForFile(
+  output: string,
+  filePath: string
+): FileDiagnostic[] {
+  if (!output.trim()) {
+    return [];
+  }
+
+  const fileName = path.basename(filePath);
+  const escapedFileName = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const lineRe = new RegExp(`${escapedFileName}:(\\d+):(\\d+):\\s*(.+)`);
+
+  const results: FileDiagnostic[] = [];
+  let matched = false;
+
+  for (const line of output.split('\n')) {
+    const m = lineRe.exec(line);
+    if (m) {
+      results.push({
+        line: Math.max(0, parseInt(m[1], 10) - 1),
+        col: Math.max(0, parseInt(m[2], 10) - 1),
+        message: m[3].trim(),
+      });
+      matched = true;
+    }
+  }
+
+  // Fallback: if output mentions the filename but no line:col match
+  if (!matched && output.includes(fileName)) {
+    results.push({
+      line: 0,
+      col: 0,
+      message: output.trim(),
+    });
+  }
+
+  return results;
 }
 
 /**
@@ -127,6 +180,65 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
     });
     disposables.push(d);
   }
+
+  // Validate active file
+  const validateFileDisposable = vscode.commands.registerCommand(
+    'xcaffold.validateFile',
+    async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showErrorMessage(
+          'xcaffold: No active editor.'
+        );
+        return;
+      }
+
+      const filePath = editor.document.fileName;
+      if (!filePath.endsWith('.xcf')) {
+        vscode.window.showErrorMessage(
+          'xcaffold: Active file is not an .xcf manifest.'
+        );
+        return;
+      }
+
+      const workspaceFolder =
+        vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ??
+        path.dirname(filePath);
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `xcaffold: Validating ${path.basename(filePath)}...`,
+          cancellable: false,
+        },
+        async () => {
+          try {
+            await cli.run(['validate'], workspaceFolder);
+            vscode.window.showInformationMessage(
+              `xcaffold: ${path.basename(filePath)} is valid.`
+            );
+          } catch (err: any) {
+            const output: string =
+              err.stderr || err.stdout || err.message || '';
+            const diags = filterDiagnosticsForFile(output, filePath);
+            if (diags.length > 0) {
+              const summary = diags
+                .map((d) => `Line ${d.line + 1}: ${d.message}`)
+                .join('\n');
+              vscode.window.showErrorMessage(
+                `xcaffold: ${path.basename(filePath)} has errors:\n${summary}`
+              );
+            } else {
+              vscode.window.showErrorMessage(
+                `xcaffold validate error: ${err.message}`
+              );
+            }
+          }
+        }
+      );
+    }
+  );
+  disposables.push(validateFileDisposable);
 
   return vscode.Disposable.from(...disposables);
 }

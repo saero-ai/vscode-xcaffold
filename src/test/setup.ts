@@ -18,6 +18,7 @@ mock('vscode', {
     showErrorMessage: () => {},
     withProgress: (options: any, task: any) => task(),
     showQuickPick: async (items: any[], _options?: any) => items[0],
+    activeTextEditor: undefined as any,
     createStatusBarItem: (alignment?: number, priority?: number) => ({
       alignment: alignment || 1,
       priority: priority || 0,
