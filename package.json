@@ -25,6 +25,32 @@
     "yaml.schemas": {
       "./schemas/xcaffold-schema.json": "*.xcf"
     },
+    "commands": [
+      { "command": "xcaffold.apply", "title": "xcaffold: Apply Manifest", "category": "xcaffold" },
+      { "command": "xcaffold.validate", "title": "xcaffold: Validate Manifest", "category": "xcaffold" },
+      { "command": "xcaffold.status", "title": "xcaffold: Show Project Status", "category": "xcaffold" },
+      { "command": "xcaffold.list", "title": "xcaffold: List Resources", "category": "xcaffold" },
+      { "command": "xcaffold.graph", "title": "xcaffold: Show Resource Graph", "category": "xcaffold" },
+      { "command": "xcaffold.import", "title": "xcaffold: Import from Providers", "category": "xcaffold" },
+      { "command": "xcaffold.refreshExplorer", "title": "Refresh Explorer", "icon": "$(refresh)" }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "xcaffold",
+          "title": "xcaffold",
+          "icon": "$(rocket)"
+        }
+      ]
+    },
+    "views": {
+      "xcaffold": [
+        {
+          "id": "xcaffoldExplorer",
+          "name": "Resource Explorer"
+        }
+      ]
+    },
     "configuration": {
       "title": "xcaffold",
       "properties": {
@@ -37,7 +63,9 @@
     }
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "npx ts-node src/test/runTests.ts"
   },
   "keywords": [],
   "author": "",
