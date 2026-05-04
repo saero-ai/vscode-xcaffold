@@ -1,0 +1,852 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "oneOf": [
+    {
+      "properties": {
+        "api-version": {
+          "const": "xcaffold/v1"
+        },
+        "assertions": {
+          "description": "Policy assertion IDs evaluated post-compilation.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "background": {
+          "description": "Runs the agent in background mode without interactive prompts.",
+          "type": "boolean"
+        },
+        "body": {
+          "description": "Resource body content (Markdown)",
+          "type": "string"
+        },
+        "color": {
+          "description": "Display color for terminal output differentiation.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable purpose of this agent.",
+          "type": "string"
+        },
+        "disable-model-invocation": {
+          "description": "Prevents the agent from spawning sub-agents.",
+          "type": "boolean"
+        },
+        "disallowed-tools": {
+          "description": "Tools explicitly denied to this agent.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "effort": {
+          "description": "Reasoning effort level hint for the model provider.",
+          "type": "string"
+        },
+        "hooks": {
+          "description": "Inline lifecycle hook definitions for this agent.",
+          "type": "string"
+        },
+        "initial-prompt": {
+          "description": "System prompt prepended to every conversation.",
+          "type": "string"
+        },
+        "isolation": {
+          "description": "Process isolation level for the agent session.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "agent"
+        },
+        "max-turns": {
+          "description": "Maximum conversation turns before the agent exits.",
+          "type": "string"
+        },
+        "mcp": {
+          "description": "MCP server resource IDs available to this agent.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "mcp-servers": {
+          "description": "Inline MCP server definitions keyed by server name.",
+          "type": "object"
+        },
+        "memory": {
+          "description": "Named memory banks attached to this agent.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "model": {
+          "description": "LLM model identifier or alias resolved at compile time.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Unique identifier for this agent within the project.",
+          "pattern": "^[a-z0-9-]+$",
+          "type": "string"
+        },
+        "permission-mode": {
+          "description": "Security mode controlling tool authorization behavior.",
+          "type": "string"
+        },
+        "readonly": {
+          "description": "When true, restricts the agent to read-only tool access.",
+          "type": "boolean"
+        },
+        "rules": {
+          "description": "Rule resource IDs governing this agent.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "skills": {
+          "description": "Skill resource IDs attached to this agent.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "targets": {
+          "description": "Per-provider override configuration keyed by provider name.",
+          "type": "object"
+        },
+        "tools": {
+          "description": "Ordered list of tools this agent may invoke.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "user-invocable": {
+          "description": "Whether users can invoke this agent directly via slash command.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "api-version",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "agents": {
+          "description": "Agent resource IDs to include in this blueprint.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "api-version": {
+          "const": "xcaffold/v1"
+        },
+        "contexts": {
+          "description": "Context resource IDs to include in this blueprint.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "description": {
+          "description": "Human-readable purpose of this blueprint.",
+          "type": "string"
+        },
+        "extends": {
+          "description": "Name of another blueprint to inherit selections from.",
+          "type": "string"
+        },
+        "hooks": {
+          "description": "Name of the hooks block to use.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "blueprint"
+        },
+        "mcp": {
+          "description": "MCP server resource IDs to include in this blueprint.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "memory": {
+          "description": "Memory resource IDs to include in this blueprint.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "Unique identifier for this blueprint.",
+          "pattern": "^[a-z0-9-]+$",
+          "type": "string"
+        },
+        "policies": {
+          "description": "Policy resource IDs to include in this blueprint.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "rules": {
+          "description": "Rule resource IDs to include in this blueprint.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "settings": {
+          "description": "Name of the settings block to use.",
+          "type": "string"
+        },
+        "skills": {
+          "description": "Skill resource IDs to include in this blueprint.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "workflows": {
+          "description": "Workflow resource IDs to include in this blueprint.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api-version",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "api-version": {
+          "const": "xcaffold/v1"
+        },
+        "body": {
+          "description": "Resource body content (Markdown)",
+          "type": "string"
+        },
+        "default": {
+          "description": "Marks this context as tie-breaker when multiple match the same target.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable purpose of this context block.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "context"
+        },
+        "name": {
+          "description": "Unique identifier for this context block.",
+          "pattern": "^[a-z0-9-]+$",
+          "type": "string"
+        },
+        "targets": {
+          "description": "Restricts this context to specific provider targets.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api-version",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "api-version": {
+          "const": "xcaffold/v1"
+        },
+        "artifacts": {
+          "description": "Named subdirectories to copy from xcf/hooks/\u003cname\u003e/ to provider hook dirs.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "events": {
+          "description": "Lifecycle event handlers keyed by event name.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "hooks"
+        },
+        "name": {
+          "description": "Unique identifier for this hook block.",
+          "pattern": "^[a-z0-9-]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api-version",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "api-version": {
+          "const": "xcaffold/v1"
+        },
+        "args": {
+          "description": "Arguments passed to the server command.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "auth-provider-type": {
+          "description": "Authentication provider type for remote servers.",
+          "type": "string"
+        },
+        "command": {
+          "description": "Shell command to start the MCP server process.",
+          "type": "string"
+        },
+        "cwd": {
+          "description": "Working directory for the MCP server process.",
+          "type": "string"
+        },
+        "disabled": {
+          "description": "When true, the server is registered but not started.",
+          "type": "boolean"
+        },
+        "disabled-tools": {
+          "description": "Tool names to disable on this MCP server.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "env": {
+          "description": "Environment variables passed to the server process.",
+          "type": "object"
+        },
+        "headers": {
+          "description": "HTTP headers for remote server connections.",
+          "type": "object"
+        },
+        "kind": {
+          "const": "mcp"
+        },
+        "name": {
+          "description": "Unique identifier for this MCP server.",
+          "pattern": "^[a-z0-9-]+$",
+          "type": "string"
+        },
+        "oauth": {
+          "description": "OAuth configuration key-value pairs for authentication.",
+          "type": "object"
+        },
+        "type": {
+          "description": "Server type (stdio or sse).",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL for remote MCP servers.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api-version",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "api-version": {
+          "const": "xcaffold/v1"
+        },
+        "body": {
+          "description": "Resource body content (Markdown)",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable purpose of this memory entry.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "memory"
+        },
+        "name": {
+          "description": "Unique identifier for this memory entry.",
+          "pattern": "^[a-z0-9-]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api-version",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "api-version": {
+          "const": "xcaffold/v1"
+        },
+        "deny": {
+          "description": "Forbidden content or path patterns in compiled output.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "description": {
+          "description": "Human-readable purpose of this policy.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "policy"
+        },
+        "match": {
+          "description": "Filter conditions selecting which resources to evaluate.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Unique identifier for this policy.",
+          "pattern": "^[a-z0-9-]+$",
+          "type": "string"
+        },
+        "require": {
+          "description": "Field constraints applied to matched resources.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "severity": {
+          "description": "Violation severity level when the policy fails.",
+          "enum": [
+            "error",
+            "warning",
+            "off"
+          ],
+          "type": "string"
+        },
+        "target": {
+          "description": "Resource kind this policy evaluates.",
+          "enum": [
+            "agent",
+            "skill",
+            "rule",
+            "hook",
+            "settings",
+            "output"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "api-version",
+        "kind",
+        "name",
+        "severity",
+        "target"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "activation": {
+          "description": "Cross-provider activation mode for this rule.",
+          "enum": [
+            "always",
+            "path-glob",
+            "model-decided",
+            "manual-mention",
+            "explicit-invoke"
+          ],
+          "type": "string"
+        },
+        "always-apply": {
+          "description": "When true, applies this rule to all files unconditionally.",
+          "type": "boolean"
+        },
+        "api-version": {
+          "const": "xcaffold/v1"
+        },
+        "body": {
+          "description": "Resource body content (Markdown)",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable purpose of this rule.",
+          "type": "string"
+        },
+        "exclude-agents": {
+          "description": "Agent types excluded from receiving this rule.",
+          "enum": [
+            "code-review",
+            "cloud-agent"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "rule"
+        },
+        "name": {
+          "description": "Unique identifier for this rule within the project.",
+          "pattern": "^[a-z0-9-]+$",
+          "type": "string"
+        },
+        "paths": {
+          "description": "Glob patterns for path-based activation.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "targets": {
+          "description": "Per-provider override configuration keyed by provider name.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "api-version",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "agent": {
+          "description": "Agent configuration object passed through to the provider.",
+          "type": "string"
+        },
+        "always-thinking-enabled": {
+          "description": "Force extended thinking on every turn.",
+          "type": "boolean"
+        },
+        "api-version": {
+          "const": "xcaffold/v1"
+        },
+        "attribution": {
+          "description": "Enable commit attribution metadata.",
+          "type": "boolean"
+        },
+        "auto-memory-directory": {
+          "description": "Directory for automatic memory file storage.",
+          "type": "string"
+        },
+        "auto-memory-enabled": {
+          "description": "Enable automatic memory persistence.",
+          "type": "boolean"
+        },
+        "auto-mode": {
+          "description": "Auto-mode behavior configuration.",
+          "type": "string"
+        },
+        "available-models": {
+          "description": "List of model IDs available for selection.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "claude-md-excludes": {
+          "description": "Glob patterns for paths excluded from CLAUDE.md scanning.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "cleanup-period-days": {
+          "description": "Days before unused sessions are cleaned up.",
+          "type": "integer"
+        },
+        "default-shell": {
+          "description": "Default shell for command execution.",
+          "type": "string"
+        },
+        "disable-all-hooks": {
+          "description": "Disable all lifecycle hooks globally.",
+          "type": "boolean"
+        },
+        "disable-skill-shell-execution": {
+          "description": "Prevent skills from executing shell commands.",
+          "type": "boolean"
+        },
+        "effort-level": {
+          "description": "Default reasoning effort level.",
+          "type": "string"
+        },
+        "enabled-plugins": {
+          "description": "Plugin enable/disable flags keyed by plugin name.",
+          "type": "object"
+        },
+        "env": {
+          "description": "Environment variables injected into agent sessions.",
+          "type": "object"
+        },
+        "hooks": {
+          "description": "Lifecycle hook definitions.",
+          "type": "string"
+        },
+        "include-git-instructions": {
+          "description": "Whether to include git instructions in agent context.",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "settings"
+        },
+        "language": {
+          "description": "UI language preference.",
+          "type": "string"
+        },
+        "mcp-servers": {
+          "description": "Inline MCP server definitions.",
+          "type": "object"
+        },
+        "model": {
+          "description": "Default model for the platform session.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Unique identifier for this settings block.",
+          "type": "string"
+        },
+        "otel-headers-helper": {
+          "description": "Helper command for generating OpenTelemetry headers.",
+          "type": "string"
+        },
+        "output-style": {
+          "description": "Output verbosity style.",
+          "type": "string"
+        },
+        "permissions": {
+          "description": "Tool permission rules (allow, deny, ask lists).",
+          "type": "string"
+        },
+        "plans-directory": {
+          "description": "Directory for storing plan files.",
+          "type": "string"
+        },
+        "respect-gitignore": {
+          "description": "Whether to respect .gitignore when scanning files.",
+          "type": "boolean"
+        },
+        "sandbox": {
+          "description": "OS-level process isolation configuration.",
+          "type": "string"
+        },
+        "skip-dangerous-mode-permission-prompt": {
+          "description": "Skip the dangerous mode permission confirmation prompt.",
+          "type": "boolean"
+        },
+        "status-line": {
+          "description": "Status line display configuration.",
+          "type": "string"
+        },
+        "worktree": {
+          "description": "Worktree configuration object passed through to the provider.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api-version",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "allowed-tools": {
+          "description": "Tools this skill is permitted to use. Skill-specific field.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "api-version": {
+          "const": "xcaffold/v1"
+        },
+        "argument-hint": {
+          "description": "Hint text shown to the user when invoking the skill.",
+          "type": "string"
+        },
+        "artifacts": {
+          "description": "Named subdirectories to copy from xcf/skills/\u003cid\u003e/ to provider output.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "assets": {
+          "description": "Output artifact files copied to skills/\u003cid\u003e/assets/ at compile time.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "body": {
+          "description": "Resource body content (Markdown)",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable purpose of this skill.",
+          "type": "string"
+        },
+        "disable-model-invocation": {
+          "description": "Prevents the skill from spawning sub-agents.",
+          "type": "boolean"
+        },
+        "examples": {
+          "description": "Demonstration files copied to skills/\u003cid\u003e/examples/ at compile time.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "skill"
+        },
+        "license": {
+          "description": "SPDX license identifier for open-source skills.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Unique identifier for this skill within the project.",
+          "pattern": "^[a-z0-9-]+$",
+          "type": "string"
+        },
+        "references": {
+          "description": "Docs and data files copied to skills/\u003cid\u003e/references/ at compile time.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "scripts": {
+          "description": "Executable helper files copied to skills/\u003cid\u003e/scripts/ at compile time.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "targets": {
+          "description": "Per-provider override configuration keyed by provider name.",
+          "type": "object"
+        },
+        "user-invocable": {
+          "description": "Whether users can invoke this skill directly via slash command.",
+          "type": "boolean"
+        },
+        "when-to-use": {
+          "description": "Guidance for the model on when to invoke this skill.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api-version",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "api-version": {
+          "const": "xcaffold/v1"
+        },
+        "body": {
+          "description": "Resource body content (Markdown)",
+          "type": "string"
+        },
+        "default-target": {
+          "description": "Default compilation target provider for this template.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable purpose of this template.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "template"
+        },
+        "name": {
+          "description": "Unique identifier for this template within the project.",
+          "pattern": "^[a-z0-9-]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api-version",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "api-version": {
+          "description": "Schema shape discriminator for workflow versioning.",
+          "enum": [
+            "workflow/v1"
+          ],
+          "type": "string"
+        },
+        "body": {
+          "description": "Resource body content (Markdown)",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable purpose of this workflow.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "workflow"
+        },
+        "name": {
+          "description": "Unique identifier for this workflow within the project.",
+          "pattern": "^[a-z0-9-]+$",
+          "type": "string"
+        },
+        "steps": {
+          "description": "Ordered procedural steps for multi-step workflows.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "targets": {
+          "description": "Per-provider overrides and lowering-strategy directives.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "api-version",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "xcaffold Manifest",
+  "type": "object"
+}

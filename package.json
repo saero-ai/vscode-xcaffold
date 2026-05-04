@@ -8,5 +8,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "contributes": {
+    "yaml.schemas": {
+      "./schemas/xcaffold-schema.json": "*.xcf"
+    }
+  }
 }
