@@ -7,7 +7,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/saero-ai/vscode-xcaffold"
+    "url": "git+https://github.com/saero-ai/vscode-xcaffold.git"
   },
   "engines": {
     "vscode": "^1.85.0"
@@ -35,5 +35,23 @@
         }
       }
     }
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/saero-ai/vscode-xcaffold/issues"
+  },
+  "homepage": "https://github.com/saero-ai/vscode-xcaffold#readme",
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/mock-require": "^3.0.0",
+    "@types/vscode": "^1.118.0",
+    "mocha": "^11.7.5",
+    "mock-require": "^3.0.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
   }
 }
