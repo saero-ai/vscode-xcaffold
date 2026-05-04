@@ -118,8 +118,7 @@
         },
         {
           "id": "xcaffoldActions",
-          "name": "Actions",
-          "type": "webview"
+          "name": "Actions"
         }
       ]
     },

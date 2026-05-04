@@ -103,7 +103,7 @@ export class XcaffoldGraphProvider {
     <div id="message">${escapeHtml(message)}</div>
     <svg id="canvas"></svg>
 
-    <script>
+    <script nonce="${nonce}">
         const data = ${dataJson};
         if (data) {
             document.getElementById('message').innerText = '';
