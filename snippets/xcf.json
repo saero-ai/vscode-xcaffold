@@ -1,0 +1,77 @@
+{
+  "xcf-agent": {
+    "prefix": ["agent", "kind: agent"],
+    "description": "xcaffold agent resource",
+    "scope": "yaml",
+    "body": [
+      "---",
+      "kind: agent",
+      "version: \"1.0\"",
+      "name: ${1:agent-name}",
+      "description: \"${2:Agent description}\"",
+      "model: ${3|sonnet,opus,haiku|}",
+      "tools: [${4:Read, Write, Edit, Bash, Glob, Grep}]",
+      "---",
+      "${0}"
+    ]
+  },
+  "xcf-skill": {
+    "prefix": ["skill", "kind: skill"],
+    "description": "xcaffold skill resource",
+    "scope": "yaml",
+    "body": [
+      "---",
+      "kind: skill",
+      "version: \"1.0\"",
+      "name: ${1:skill-name}",
+      "description: \"${2:Skill description}\"",
+      "allowed-tools: [${3:Read, Write, Edit, Bash}]",
+      "---",
+      "${0}"
+    ]
+  },
+  "xcf-rule": {
+    "prefix": ["rule", "kind: rule"],
+    "description": "xcaffold rule resource",
+    "scope": "yaml",
+    "body": [
+      "---",
+      "kind: rule",
+      "version: \"1.0\"",
+      "name: ${1:rule-name}",
+      "description: \"${2:Rule description}\"",
+      "always-apply: ${3|true,false|}",
+      "---",
+      "${0}"
+    ]
+  },
+  "xcf-workflow": {
+    "prefix": ["workflow", "kind: workflow"],
+    "description": "xcaffold workflow resource",
+    "scope": "yaml",
+    "body": [
+      "---",
+      "kind: workflow",
+      "version: \"1.0\"",
+      "api-version: workflow/v1",
+      "name: ${1:workflow-name}",
+      "description: \"${2:Workflow description}\"",
+      "---",
+      "${0}"
+    ]
+  },
+  "xcf-mcp": {
+    "prefix": ["mcp", "kind: mcp"],
+    "description": "xcaffold MCP server resource",
+    "scope": "yaml",
+    "body": [
+      "kind: mcp",
+      "version: \"1.0\"",
+      "name: ${1:server-name}",
+      "description: \"${2:MCP server description}\"",
+      "command: ${3:npx}",
+      "args: [${4:@modelcontextprotocol/server}]",
+      "${0}"
+    ]
+  }
+}
