@@ -17,6 +17,18 @@ mock('vscode', {
     showInformationMessage: () => {},
     showErrorMessage: () => {},
     withProgress: (options: any, task: any) => task(),
+    createStatusBarItem: (alignment?: number, priority?: number) => ({
+      alignment: alignment || 1,
+      priority: priority || 0,
+      text: '',
+      tooltip: '',
+      command: undefined as any,
+      name: '',
+      backgroundColor: undefined as any,
+      show: () => {},
+      hide: () => {},
+      dispose: () => {},
+    }),
   },
   commands: {
     registerCommand: (id: string, callback: any) => ({ dispose: () => {} }),
@@ -65,5 +77,9 @@ mock('vscode', {
   Uri: {
     file: (path: string) => ({ fsPath: path, scheme: 'file', path }),
     parse: (str: string) => ({ fsPath: str, scheme: 'file', path: str }),
+  },
+  StatusBarAlignment: { Left: 1, Right: 2 },
+  ThemeColor: class {
+    constructor(public id: string) {}
   },
 });
