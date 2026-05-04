@@ -82,7 +82,7 @@ export class XcfIndex {
   private fileToKeys = new Map<string, string[]>();
 
   private makeKey(kind: string, name: string): string {
-    return `${kind}:${name}`;
+    return `${kind.toLowerCase()}:${name}`;
   }
 
   setEntry(entry: XcfEntry): void {
