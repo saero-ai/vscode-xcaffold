@@ -12,7 +12,6 @@ export const XCAFFOLD_COMMANDS: CommandDef[] = [
   { id: 'xcaffold.validate', args: ['validate'] },
   { id: 'xcaffold.status', args: ['status'] },
   { id: 'xcaffold.list', args: ['list'] },
-  { id: 'xcaffold.graph', args: ['graph'] },
   { id: 'xcaffold.import', args: ['import'] },
 ];
 

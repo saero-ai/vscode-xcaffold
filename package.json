@@ -4,6 +4,7 @@
   "description": "xcaffold .xcf manifest authoring — schema validation, autocomplete, and CLI commands",
   "version": "0.1.0",
   "publisher": "saero-ai",
+  "icon": "icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -26,13 +27,41 @@
       "./schemas/xcaffold-schema.json": "*.xcf"
     },
     "commands": [
-      { "command": "xcaffold.apply", "title": "xcaffold: Apply Manifest", "category": "xcaffold" },
-      { "command": "xcaffold.validate", "title": "xcaffold: Validate Manifest", "category": "xcaffold" },
-      { "command": "xcaffold.status", "title": "xcaffold: Show Project Status", "category": "xcaffold" },
-      { "command": "xcaffold.list", "title": "xcaffold: List Resources", "category": "xcaffold" },
-      { "command": "xcaffold.graph", "title": "xcaffold: Show Resource Graph", "category": "xcaffold" },
-      { "command": "xcaffold.import", "title": "xcaffold: Import from Providers", "category": "xcaffold" },
-      { "command": "xcaffold.refreshExplorer", "title": "Refresh Explorer", "icon": "$(refresh)" }
+      {
+        "command": "xcaffold.apply",
+        "title": "xcaffold: Apply Manifest",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.validate",
+        "title": "xcaffold: Validate Manifest",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.status",
+        "title": "xcaffold: Show Project Status",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.list",
+        "title": "xcaffold: List Resources",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.graph",
+        "title": "xcaffold: Show Resource Graph",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.import",
+        "title": "xcaffold: Import from Providers",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.refreshExplorer",
+        "title": "Refresh Explorer",
+        "icon": "$(refresh)"
+      }
     ],
     "viewsContainers": {
       "activitybar": [
@@ -76,7 +105,8 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/mock-require": "^3.0.0",
-    "@types/vscode": "^1.118.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.9.1",
     "mocha": "^11.7.5",
     "mock-require": "^3.0.3",
     "ts-node": "^10.9.2",

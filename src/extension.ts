@@ -3,6 +3,7 @@ import { XcaffoldCli } from './xcaffoldCli';
 import { registerDiagnosticProvider } from './diagnosticProvider';
 import { registerCommandProvider } from './commandProvider';
 import { XcaffoldTreeProvider } from './treeViewProvider';
+import { XcaffoldGraphProvider } from './graphProvider';
 import { disposeOutputChannel } from './outputChannel';
 
 /**
@@ -23,9 +24,16 @@ export function activate(context: vscode.ExtensionContext) {
   const treeProvider = new XcaffoldTreeProvider(cli);
   const treeView = vscode.window.registerTreeDataProvider('xcaffoldExplorer', treeProvider);
 
-  // 4. Register Refresh Command for Tree View
+  // 4. Register Custom Commands
   const refreshCommand = vscode.commands.registerCommand('xcaffold.refreshExplorer', () => {
     treeProvider.refresh();
+  });
+
+  const graphCommand = vscode.commands.registerCommand('xcaffold.graph', () => {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (workspaceFolder) {
+      XcaffoldGraphProvider.show(cli, workspaceFolder);
+    }
   });
 
   // 5. Add to subscriptions for cleanup
@@ -33,7 +41,8 @@ export function activate(context: vscode.ExtensionContext) {
     diagnosticProvider,
     commandProvider,
     treeView,
-    refreshCommand
+    refreshCommand,
+    graphCommand
   );
 
   console.log('xcaffold extension is now active');
