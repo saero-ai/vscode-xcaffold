@@ -98,7 +98,7 @@ export class XcaffoldGraphProvider {
     </style>
 </head>
 <body>
-    <div id="message">${message}</div>
+    <div id="message">${escapeHtml(message)}</div>
     <svg id="canvas"></svg>
 
     <script>
@@ -190,6 +190,10 @@ export class XcaffoldGraphProvider {
 </body>
 </html>`;
   }
+}
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function getNonce(): string {
