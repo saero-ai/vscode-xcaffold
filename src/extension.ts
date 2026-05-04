@@ -15,6 +15,8 @@ import { DiffPreviewProvider } from './diffPreviewProvider';
 import { FidelityProvider } from './fidelityProvider';
 import { StatusDashProvider } from './statusDashProvider';
 import { SchemaViewerProvider } from './schemaViewerProvider';
+import { XcfCodeLensProvider } from './codeLensProvider';
+import { XcfDefinitionProvider } from './definitionProvider';
 
 /** Debounce timeout for xcfIndex refresh (ms). */
 const INDEX_DEBOUNCE_MS = 500;
@@ -311,6 +313,17 @@ export async function activate(
   const statusBar = new StatusBarProvider();
   initStatusBar(cli, workspaceFolderPath || '', statusBar);
 
+  // 6b. Register CodeLens and Definition providers for .xcf files
+  const codeLensProvider = vscode.languages.registerCodeLensProvider(
+    { scheme: 'file', pattern: '**/*.xcf' },
+    new XcfCodeLensProvider(),
+  );
+
+  const definitionProvider = vscode.languages.registerDefinitionProvider(
+    { scheme: 'file', pattern: '**/*.xcf' },
+    new XcfDefinitionProvider(xcfIndex),
+  );
+
   // 7. Initialize webview data source
   const dataSource = new CliDataSource(
     (args, cwd) => cli.run(args, cwd),
@@ -329,6 +342,8 @@ export async function activate(
     statusBar,
     saveWatcher,
     deleteWatcher,
+    codeLensProvider,
+    definitionProvider,
     initWizardCommand,
     importPickerCommand,
     diffCommand,
