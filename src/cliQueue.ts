@@ -21,7 +21,7 @@ export class CliOp {
  */
 export class CliQueue {
   private writeLock: Promise<void> = Promise.resolve();
-  private writeInFlight = false;
+  private writeQueueDepth = 0;
   private onBusy: ((command: string) => void) | undefined;
 
   constructor(private readonly cli: XcaffoldCli) {}
@@ -65,20 +65,20 @@ export class CliQueue {
     });
 
     // Check if a write is already running
-    const isQueued = this.writeInFlight;
+    const isQueued = this.writeQueueDepth > 0;
 
     if (isQueued && this.onBusy) {
       this.onBusy(command);
     }
 
-    // Mark that a write is now in flight
-    this.writeInFlight = true;
+    // Increment queue depth
+    this.writeQueueDepth++;
 
     if (!isQueued) {
       // Lock is immediately available, start CLI call synchronously
       const cliCall = this.runPrefixed(command, args, cwd);
       return cliCall.finally(() => {
-        this.writeInFlight = false;
+        this.writeQueueDepth--;
         releaseLock!();
       });
     } else {
@@ -86,7 +86,7 @@ export class CliQueue {
       return prevLock
         .then(() => this.runPrefixed(command, args, cwd))
         .finally(() => {
-          this.writeInFlight = false;
+          this.writeQueueDepth--;
           releaseLock!();
         });
     }
