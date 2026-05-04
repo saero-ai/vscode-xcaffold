@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { XcaffoldCli } from './xcaffoldCli';
+import { XcfIndex } from './xcfIndex';
 import * as path from 'path';
 
 export interface ResourceInfo {
@@ -10,11 +11,11 @@ export interface ResourceInfo {
 
 export function parseListOutput(stdout: string): Map<string, string[]> {
   const grouped = new Map<string, string[]>();
-  
+
   // Section header pattern: "AGENTS  (3)" or "MCP SERVERS  (2)"
   const sectionRe = /^([A-Z][A-Z ]+\S)\s+\(\d+\)/;
   const nameRe = /^  (\S+)/; // two-space indent = resource name
-  
+
   let currentKind = '';
   for (const line of stdout.split('\n')) {
     const sectionMatch = sectionRe.exec(line);
@@ -40,10 +41,27 @@ export class ResourceTreeItem extends vscode.TreeItem {
     public readonly kind: string,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState,
     public readonly description?: string,
+    xcfIndex?: XcfIndex,
   ) {
     super(label, collapsibleState);
     this.tooltip = this.description || `${this.kind}: ${this.label}`;
-    this.contextValue = collapsibleState === vscode.TreeItemCollapsibleState.None ? 'resource' : 'kind';
+
+    if (collapsibleState === vscode.TreeItemCollapsibleState.None) {
+      this.contextValue = 'resource-item';
+      // Resolve file URI from xcfIndex for click-to-open
+      if (xcfIndex) {
+        const entry = xcfIndex.resolve(this.kind, this.label);
+        if (entry) {
+          this.command = {
+            command: 'vscode.open',
+            title: 'Open .xcf File',
+            arguments: [vscode.Uri.file(entry.fileUri)],
+          };
+        }
+      }
+    } else {
+      this.contextValue = 'kind-group';
+    }
   }
 }
 
@@ -51,7 +69,10 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
   private _onDidChangeTreeData: vscode.EventEmitter<ResourceTreeItem | undefined | void> = new vscode.EventEmitter<ResourceTreeItem | undefined | void>();
   readonly onDidChangeTreeData: vscode.Event<ResourceTreeItem | undefined | void> = this._onDidChangeTreeData.event;
 
-  constructor(private cli: XcaffoldCli) {}
+  constructor(
+    private cli: XcaffoldCli,
+    private xcfIndex?: XcfIndex,
+  ) {}
 
   refresh(): void {
     this._onDidChangeTreeData.fire();
@@ -74,7 +95,7 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
       if (!element) {
         // Root: list kinds
         const items: ResourceTreeItem[] = [];
-        
+
         if (grouped.size === 0) {
           return [new ResourceTreeItem('No xcaffold project detected', 'info', vscode.TreeItemCollapsibleState.None, 'Create a project.xcf to get started.')];
         }
@@ -94,7 +115,9 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
         return resources.map(name => new ResourceTreeItem(
           name,
           element.kind,
-          vscode.TreeItemCollapsibleState.None
+          vscode.TreeItemCollapsibleState.None,
+          undefined,
+          this.xcfIndex,
         ));
       }
     } catch (err: any) {

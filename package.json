@@ -39,7 +39,7 @@
     "grammars": [
       {
         "language": "xcf",
-        "scopeName": "source.yaml.xcf",
+        "scopeName": "source.xcf",
         "path": "./syntaxes/xcf.tmLanguage.json"
       }
     ],
@@ -119,6 +119,27 @@
           "description": "Path to the xcaffold binary. Defaults to 'xcaffold' on PATH."
         }
       }
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "xcaffold.apply",
+          "when": "viewItem == resource-item",
+          "group": "xcaffold@1"
+        },
+        {
+          "command": "xcaffold.validate",
+          "when": "viewItem == resource-item",
+          "group": "xcaffold@2"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "xcaffold.refreshExplorer",
+          "when": "view == xcaffoldExplorer",
+          "group": "navigation"
+        }
+      ]
     }
   },
   "scripts": {

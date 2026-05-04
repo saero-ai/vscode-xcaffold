@@ -1,9 +1,42 @@
 {
-  "scopeName": "source.yaml.xcf",
+  "scopeName": "source.xcf",
   "name": "Xcaffold Manifest",
   "patterns": [
     {
-      "include": "source.yaml"
+      "begin": "\\A(---)$",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.frontmatter.xcf" }
+      },
+      "end": "^(---)$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.frontmatter.xcf" }
+      },
+      "name": "meta.frontmatter.yaml.xcf",
+      "patterns": [
+        {
+          "include": "source.yaml"
+        }
+      ]
+    },
+    {
+      "begin": "\\A(?!---)",
+      "end": "(?=notpossible)",
+      "name": "meta.pureyaml.xcf",
+      "patterns": [
+        {
+          "include": "source.yaml"
+        }
+      ]
+    },
+    {
+      "name": "meta.body.markdown.xcf",
+      "begin": "(?<=---)$",
+      "end": "(?=notpossible)",
+      "patterns": [
+        {
+          "include": "text.html.markdown"
+        }
+      ]
     }
   ]
 }

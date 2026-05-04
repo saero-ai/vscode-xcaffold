@@ -62,4 +62,8 @@ mock('vscode', {
       dispose: () => {},
     }),
   },
+  Uri: {
+    file: (path: string) => ({ fsPath: path, scheme: 'file', path }),
+    parse: (str: string) => ({ fsPath: str, scheme: 'file', path: str }),
+  },
 });
