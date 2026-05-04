@@ -1,17 +1,39 @@
 {
-  "name": "xcaffold-vscode",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "name": "vscode-xcaffold",
+  "displayName": "xcaffold",
+  "description": "xcaffold .xcf manifest authoring — schema validation, autocomplete, and CLI commands",
+  "version": "0.1.0",
+  "publisher": "saero-ai",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/saero-ai/vscode-xcaffold"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:yaml",
+    "workspaceContains:**/*.xcf"
+  ],
+  "main": "./dist/extension.js",
   "contributes": {
     "yaml.schemas": {
       "./schemas/xcaffold-schema.json": "*.xcf"
+    },
+    "configuration": {
+      "title": "xcaffold",
+      "properties": {
+        "xcaffold.binaryPath": {
+          "type": "string",
+          "default": "xcaffold",
+          "description": "Path to the xcaffold binary. Defaults to 'xcaffold' on PATH."
+        }
+      }
     }
   }
 }
