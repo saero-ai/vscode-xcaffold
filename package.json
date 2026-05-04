@@ -92,9 +92,12 @@
     }
   },
   "scripts": {
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "test": "npx ts-node src/test/runTests.ts"
+    "compile": "node esbuild.config.mjs",
+    "compile:production": "node esbuild.config.mjs --production",
+    "watch": "node esbuild.config.mjs --watch",
+    "typecheck": "tsc -p ./ --noEmit",
+    "test": "npx ts-node src/test/runTests.ts",
+    "pretest": "npm run typecheck"
   },
   "keywords": [],
   "author": "",
@@ -107,6 +110,7 @@
     "@types/mock-require": "^3.0.0",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.9.1",
+    "esbuild": "^0.28.0",
     "mocha": "^11.7.5",
     "mock-require": "^3.0.3",
     "ts-node": "^10.9.2",
