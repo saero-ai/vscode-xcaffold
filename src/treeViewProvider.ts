@@ -64,15 +64,22 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
 
   async getChildren(element?: ResourceTreeItem): Promise<ResourceTreeItem[]> {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    if (!workspaceFolder) return [];
+    if (!workspaceFolder) {
+      return [new ResourceTreeItem('No workspace folder open', 'error', '', vscode.TreeItemCollapsibleState.None)];
+    }
 
-    if (!element) {
-      // Root: list kinds
-      try {
-        const result = await this.cli.run(['list'], workspaceFolder);
-        const grouped = parseListOutput(result.stdout);
+    try {
+      const result = await this.cli.run(['list'], workspaceFolder);
+      const grouped = parseListOutput(result.stdout);
+
+      if (!element) {
+        // Root: list kinds
         const items: ResourceTreeItem[] = [];
         
+        if (grouped.size === 0) {
+          return [new ResourceTreeItem('No xcaffold project detected', 'info', '', vscode.TreeItemCollapsibleState.None, 'Create a project.xcf to get started.')];
+        }
+
         for (const kind of Array.from(grouped.keys()).sort()) {
           const list = grouped.get(kind)!;
           items.push(new ResourceTreeItem(
@@ -83,16 +90,9 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
           ));
         }
         return items;
-      } catch (err) {
-        return [];
-      }
-    } else {
-      // Child of a kind: list resources
-      try {
-        const result = await this.cli.run(['list'], workspaceFolder);
-        const grouped = parseListOutput(result.stdout);
+      } else {
+        // Child of a kind: list resources
         const resources = grouped.get(element.kind) || [];
-        
         return resources.map(r => new ResourceTreeItem(
           r.name,
           r.kind,
@@ -100,9 +100,9 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
           vscode.TreeItemCollapsibleState.None,
           r.description
         ));
-      } catch (err) {
-        return [];
       }
+    } catch (err: any) {
+      return [new ResourceTreeItem('CLI Error: Check output channel', 'error', '', vscode.TreeItemCollapsibleState.None, err.message)];
     }
   }
 }

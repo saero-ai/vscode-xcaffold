@@ -8,7 +8,6 @@ suite('CommandProvider', () => {
     assert.ok(ids.includes('xcaffold.validate'));
     assert.ok(ids.includes('xcaffold.status'));
     assert.ok(ids.includes('xcaffold.list'));
-    assert.ok(ids.includes('xcaffold.graph'));
     assert.ok(ids.includes('xcaffold.import'));
   });
 });

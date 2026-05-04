@@ -2,7 +2,7 @@
 
 `xcaffold` is the ultimate manifest authoring extension for AI-native software engineering. It provides 100% technical parity with the `xcaffold` Go CLI, enabling seamless management of agents, skills, rules, and workflows directly from your editor.
 
-![xcaffold Icon](icon.png)
+![xcaffold Logo](logo.png)
 
 ## Features
 

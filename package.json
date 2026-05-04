@@ -4,7 +4,7 @@
   "description": "xcaffold .xcf manifest authoring — schema validation, autocomplete, and CLI commands",
   "version": "0.1.0",
   "publisher": "saero-ai",
-  "icon": "icon.png",
+  "icon": "logo.png",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -68,7 +68,7 @@
         {
           "id": "xcaffold",
           "title": "xcaffold",
-          "icon": "$(rocket)"
+          "icon": "logo.svg"
         }
       ]
     },
