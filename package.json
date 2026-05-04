@@ -64,6 +64,26 @@
         "command": "xcaffold.refreshExplorer",
         "title": "Refresh Explorer",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "xcaffold.validateFile",
+        "title": "xcaffold: Validate Active File",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.initWizard",
+        "title": "xcaffold: Initialize Project (Wizard)",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.importPicker",
+        "title": "xcaffold: Import from Providers (Picker)",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.diff",
+        "title": "xcaffold: Preview Changes (Diff)",
+        "category": "xcaffold"
       }
     ],
     "viewsContainers": {
@@ -100,6 +120,13 @@
       }
     ],
     "menus": {
+      "editor/title": [
+        {
+          "command": "xcaffold.validateFile",
+          "when": "resourceExtname == .xcf",
+          "group": "xcaffold@1"
+        }
+      ],
       "view/item/context": [
         {
           "command": "xcaffold.apply",

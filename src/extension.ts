@@ -8,6 +8,8 @@ import { disposeOutputChannel } from './outputChannel';
 import { checkMinimumVersion } from './versionCheck';
 import { XcfIndex, parseFrontmatter } from './xcfIndex';
 import { StatusBarProvider } from './statusBarProvider';
+import { runInitWizard } from './initWizardProvider';
+import { runImportPicker } from './importPickerProvider';
 
 /** Debounce timeout for xcfIndex refresh (ms). */
 const INDEX_DEBOUNCE_MS = 500;
@@ -117,7 +119,7 @@ function registerCommands(
   scheduleIndexRefresh: () => void,
   workspaceFolderPath: string | undefined,
   statusBar: StatusBarProvider
-): { refreshCommand: vscode.Disposable; graphCommand: vscode.Disposable } {
+): { refreshCommand: vscode.Disposable; graphCommand: vscode.Disposable; initWizardCommand: vscode.Disposable; importPickerCommand: vscode.Disposable; diffCommand: vscode.Disposable } {
   const refreshCommand = vscode.commands.registerCommand('xcaffold.refreshExplorer', () => {
     treeProvider.refresh();
     scheduleIndexRefresh();
@@ -138,7 +140,41 @@ function registerCommands(
     }
   });
 
-  return { refreshCommand, graphCommand };
+  // Phase 2: Interactive commands
+  const initWizardCommand = vscode.commands.registerCommand(
+    'xcaffold.initWizard',
+    async () => {
+      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsFolder) {
+        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
+        return;
+      }
+      await runInitWizard(cli, wsFolder);
+    }
+  );
+
+  const importPickerCommand = vscode.commands.registerCommand(
+    'xcaffold.importPicker',
+    async () => {
+      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsFolder) {
+        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
+        return;
+      }
+      await runImportPicker(cli, wsFolder);
+    }
+  );
+
+  const diffCommand = vscode.commands.registerCommand(
+    'xcaffold.diff',
+    async () => {
+      vscode.window.showInformationMessage(
+        'xcaffold: Diff preview will be available in a future update.'
+      );
+    }
+  );
+
+  return { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand };
 }
 
 /**
@@ -193,7 +229,7 @@ export async function activate(
   initStatusBar(cli, workspaceFolderPath || '', statusBar);
 
   // 7. Register custom commands
-  const { refreshCommand, graphCommand } = registerCommands(context, cli, treeProvider, scheduleIndexRefresh, workspaceFolderPath, statusBar);
+  const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand } = registerCommands(context, cli, treeProvider, scheduleIndexRefresh, workspaceFolderPath, statusBar);
 
   // 8. Add to subscriptions for cleanup
   context.subscriptions.push(
@@ -205,6 +241,9 @@ export async function activate(
     statusBar,
     saveWatcher,
     deleteWatcher,
+    initWizardCommand,
+    importPickerCommand,
+    diffCommand,
   );
 }
 
