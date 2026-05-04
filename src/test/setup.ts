@@ -125,8 +125,4 @@ mock('vscode', {
   Location: class {
     constructor(public uri: any, public range: any) {}
   },
-  Uri: {
-    file: (path: string) => ({ fsPath: path, scheme: 'file', path }),
-    parse: (str: string) => ({ fsPath: str, scheme: 'file', path: str }),
-  },
 });
