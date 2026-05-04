@@ -68,8 +68,6 @@ export async function activate(
     refreshCommand,
     graphCommand
   );
-
-  console.log('xcaffold extension is now active');
 }
 
 /**
