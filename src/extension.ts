@@ -32,7 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
   const graphCommand = vscode.commands.registerCommand('xcaffold.graph', () => {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (workspaceFolder) {
-      XcaffoldGraphProvider.show(cli, workspaceFolder);
+      XcaffoldGraphProvider.show(cli, workspaceFolder, context.extensionUri);
     }
   });
 

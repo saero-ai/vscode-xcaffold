@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { XcaffoldCli } from './xcaffoldCli';
 
 export class XcaffoldGraphProvider {
@@ -6,13 +7,22 @@ export class XcaffoldGraphProvider {
   private readonly _panel: vscode.WebviewPanel;
   private _disposables: vscode.Disposable[] = [];
 
-  private constructor(panel: vscode.WebviewPanel, private cli: XcaffoldCli, private workspaceFolder: string) {
+  private constructor(
+    panel: vscode.WebviewPanel,
+    private cli: XcaffoldCli,
+    private workspaceFolder: string,
+    private extensionUri: vscode.Uri
+  ) {
     this._panel = panel;
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
     this._update();
   }
 
-  public static show(cli: XcaffoldCli, workspaceFolder: string) {
+  public static show(
+    cli: XcaffoldCli,
+    workspaceFolder: string,
+    extensionUri: vscode.Uri
+  ) {
     const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
 
     if (XcaffoldGraphProvider.currentPanel) {
@@ -27,10 +37,13 @@ export class XcaffoldGraphProvider {
       {
         enableScripts: true,
         retainContextWhenHidden: true,
+        localResourceRoots: [
+          vscode.Uri.joinPath(extensionUri, 'dist'),
+        ],
       }
     );
 
-    XcaffoldGraphProvider.currentPanel = new XcaffoldGraphProvider(panel, cli, workspaceFolder);
+    XcaffoldGraphProvider.currentPanel = new XcaffoldGraphProvider(panel, cli, workspaceFolder, extensionUri);
   }
 
   public dispose() {
@@ -59,13 +72,19 @@ export class XcaffoldGraphProvider {
   private _getHtmlForWebview(webview: vscode.Webview, message: string, data: any = null) {
     const dataJson = data ? JSON.stringify(data) : 'null';
 
+    const d3Uri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'dist', 'd3.js')
+    );
+    const nonce = getNonce();
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource} 'unsafe-inline';">
     <title>xcaffold Graph</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script nonce="${nonce}" src="${d3Uri}"></script>
     <style>
         body { background: #1e1e1e; color: #ccc; font-family: sans-serif; overflow: hidden; margin: 0; }
         #canvas { width: 100vw; height: 100vh; }
@@ -171,4 +190,13 @@ export class XcaffoldGraphProvider {
 </body>
 </html>`;
   }
+}
+
+function getNonce(): string {
+  let text = '';
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
 }
