@@ -59,9 +59,17 @@ mock('vscode', {
   Range: class {
     public start: { line: number; character: number };
     public end: { line: number; character: number };
-    constructor(startLine: number, startCol: number, endLine: number, endCol: number) {
-      this.start = { line: startLine, character: startCol };
-      this.end = { line: endLine, character: endCol };
+    constructor(startLine: any, startCol?: any, endLine?: any, endCol?: any) {
+      // Handle both Range(startLine, startCol, endLine, endCol) and Range(Position, Position)
+      if (typeof startLine === 'object' && typeof startCol === 'object') {
+        // Range(Position, Position) case
+        this.start = startLine;
+        this.end = startCol;
+      } else {
+        // Range(number, number, number, number) case
+        this.start = { line: startLine, character: startCol };
+        this.end = { line: endLine, character: endCol };
+      }
     }
   },
   Diagnostic: class {
@@ -90,6 +98,8 @@ mock('vscode', {
       clear: () => {},
       dispose: () => {},
     }),
+    registerCodeLensProvider: (selector: any, provider: any) => ({ dispose: () => {} }),
+    registerDefinitionProvider: (selector: any, provider: any) => ({ dispose: () => {} }),
   },
   Uri: {
     file: (p: string) => ({ fsPath: p, scheme: 'file', path: p }),
@@ -102,5 +112,17 @@ mock('vscode', {
   StatusBarAlignment: { Left: 1, Right: 2 },
   ThemeColor: class {
     constructor(public id: string) {}
+  },
+  Position: class {
+    constructor(public line: number, public character: number) {}
+  },
+  CodeLens: class {
+    constructor(
+      public range: any,
+      public command?: { title: string; command: string; arguments?: any[] },
+    ) {}
+  },
+  Location: class {
+    constructor(public uri: any, public range: any) {}
   },
 });
