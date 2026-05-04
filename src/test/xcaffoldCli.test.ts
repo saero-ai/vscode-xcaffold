@@ -32,3 +32,30 @@ suite('XcaffoldCli', () => {
     }
   });
 });
+
+suite('XcaffoldCli async initialization', () => {
+  test('init() resolves the binary path asynchronously', async () => {
+    const cli = new XcaffoldCli('echo');
+    await cli.init();
+    // After init, run should still work
+    const result = await cli.run(['hello'], process.cwd());
+    assert.strictEqual(result.exitCode, 0);
+    assert.ok(result.stdout.includes('hello'));
+  });
+
+  test('init() caches the resolved path', async () => {
+    const cli = new XcaffoldCli('echo');
+    await cli.init();
+    await cli.init(); // second call should be a no-op
+    const result = await cli.run(['cached'], process.cwd());
+    assert.ok(result.stdout.includes('cached'));
+  });
+
+  test('run() before init() uses the uncached binaryPath', async () => {
+    // When init() has not been called, run() falls back to the raw binaryPath
+    const cli = new XcaffoldCli('echo');
+    const result = await cli.run(['fallback'], process.cwd());
+    assert.strictEqual(result.exitCode, 0);
+    assert.ok(result.stdout.includes('fallback'));
+  });
+});
