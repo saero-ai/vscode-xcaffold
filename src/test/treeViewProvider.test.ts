@@ -5,28 +5,30 @@ import * as vscode from 'vscode';
 
 suite('TreeViewProvider', () => {
   test('parseListOutput parses xcaffold list output into grouped map', () => {
-    // xcaffold list output format: KIND | NAME | DESCRIPTION
     const stdout = [
-      'KIND | NAME | DESCRIPTION',
-      '---- | ---- | -----------',
-      'agent | coder | Primary coding assistant',
-      'agent | reviewer | Security review specialist',
-      'skill | audit | Security audit procedure',
+      'my-project  .  2 agents  .  1 skill',
+      '',
+      'AGENTS  (2)',
+      '  coder',
+      '  reviewer',
+      '',
+      'SKILLS  (1)',
+      '  audit',
     ].join('\n');
 
     const grouped = parseListOutput(stdout);
     assert.strictEqual(grouped.size, 2);
-    assert.ok(grouped.has('agent'));
-    assert.ok(grouped.has('skill'));
+    assert.ok(grouped.has('AGENTS'));
+    assert.ok(grouped.has('SKILLS'));
 
-    const agents = grouped.get('agent')!;
+    const agents = grouped.get('AGENTS')!;
     assert.strictEqual(agents.length, 2);
     assert.strictEqual(agents[0].name, 'coder');
     assert.strictEqual(agents[1].name, 'reviewer');
   });
 
   test('parseListOutput handles empty output', () => {
-    const grouped = parseListOutput('KIND | NAME | DESCRIPTION\n---- | ---- | -----------');
+    const grouped = parseListOutput('');
     assert.strictEqual(grouped.size, 0);
   });
 });

@@ -10,26 +10,26 @@ export interface ResourceInfo {
 }
 
 export function parseListOutput(stdout: string): Map<string, ResourceInfo[]> {
-  const lines = stdout.split('\n');
   const grouped = new Map<string, ResourceInfo[]>();
 
-  for (const line of lines) {
-    if (!line.includes('|') || line.startsWith('KIND') || line.startsWith('----')) {
+  const sectionRe = /^([A-Z][A-Z ]+\S)\s+\(\d+/;
+  const nameRe = /^  (\S+)/;
+
+  let currentKind = '';
+  for (const line of stdout.split('\n')) {
+    const sectionMatch = sectionRe.exec(line);
+    if (sectionMatch) {
+      currentKind = sectionMatch[1];
+      grouped.set(currentKind, []);
       continue;
     }
-
-    const parts = line.split('|').map(p => p.trim());
-    if (parts.length < 2) continue;
-
-    const info: ResourceInfo = {
-      kind: parts[0],
-      name: parts[1],
-      description: parts[2] || '',
-    };
-
-    const list = grouped.get(info.kind) || [];
-    list.push(info);
-    grouped.set(info.kind, list);
+    if (currentKind) {
+      const nameMatch = nameRe.exec(line);
+      if (nameMatch) {
+        const list = grouped.get(currentKind)!;
+        list.push({ kind: currentKind, name: nameMatch[1], description: '' });
+      }
+    }
   }
 
   return grouped;
