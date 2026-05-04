@@ -49,16 +49,17 @@ export function registerDiagnosticProvider(cli: XcaffoldCli): vscode.Disposable 
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? path.dirname(doc.fileName);
 
     try {
-      // Run 'xcaffold validate' on the saved folder (validator resolves project.xcf)
       await cli.run(['validate'], workspaceFolder);
-      // If success, clear previous diagnostics
       diagnosticCollection.set(doc.uri, []);
     } catch (err: any) {
-      // The CLI validator currently doesn't provide stable line numbers in a parseable format
-      // that matches filename:line:col. We report a workspace-level diagnostic on project.xcf
-      // if available, or just clear if we can't map it.
-      const diags = parseValidateOutput(err.stdout ?? err.message ?? '', doc.fileName);
-      diagnosticCollection.set(doc.uri, diags);
+      const output = err.stdout ?? err.stderr ?? err.message ?? '';
+      const fileName = path.basename(doc.fileName);
+      if (output.includes(fileName)) {
+        const diags = parseValidateOutput(output, doc.fileName);
+        diagnosticCollection.set(doc.uri, diags);
+      } else {
+        diagnosticCollection.set(doc.uri, []);
+      }
     }
   });
 
