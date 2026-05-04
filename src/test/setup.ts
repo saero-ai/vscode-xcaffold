@@ -14,6 +14,12 @@ mock('vscode', {
       dispose: () => {},
       replace: () => {},
     }),
+    showInformationMessage: () => {},
+    showErrorMessage: () => {},
+    withProgress: (options: any, task: any) => task(),
+  },
+  commands: {
+    registerCommand: (id: string, callback: any) => ({ dispose: () => {} }),
   },
   workspace: {
     workspaceFolders: undefined,
