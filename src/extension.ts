@@ -5,6 +5,7 @@ import { registerCommandProvider } from './commandProvider';
 import { XcaffoldTreeProvider } from './treeViewProvider';
 import { XcaffoldGraphProvider } from './graphProvider';
 import { disposeOutputChannel } from './outputChannel';
+import { checkMinimumVersion } from './versionCheck';
 
 /**
  * activate is called when the extension is first loaded.
@@ -19,6 +20,16 @@ export async function activate(
   // 2. Initialize CLI adapter (async — no extension host blocking)
   const cli = new XcaffoldCli(binaryPath);
   await cli.init();
+
+  // 2b. Check minimum CLI version (non-blocking)
+  const workspaceFolderPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const pkgJson = require('../package.json');
+  const minVersion: string = pkgJson?.xcaffold?.minCliVersion ?? '0.0.0';
+  if (workspaceFolderPath) {
+    checkMinimumVersion(cli, workspaceFolderPath, minVersion).catch(() => {
+      // Swallow — version check is advisory, not blocking
+    });
+  }
 
   // 2a. Invalidate cache on config change
   context.subscriptions.push(

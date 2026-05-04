@@ -6,6 +6,9 @@
   "publisher": "saero-ai",
   "icon": "logo.png",
   "license": "MIT",
+  "xcaffold": {
+    "minCliVersion": "0.5.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/saero-ai/vscode-xcaffold.git"
