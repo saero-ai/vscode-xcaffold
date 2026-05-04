@@ -8,27 +8,27 @@ export interface ResourceInfo {
   description: string;
 }
 
-export function parseListOutput(stdout: string): Map<string, ResourceInfo[]> {
-  const lines = stdout.split('\n');
-  const grouped = new Map<string, ResourceInfo[]>();
-
-  for (const line of lines) {
-    if (!line.includes('|') || line.startsWith('KIND') || line.startsWith('----')) {
+export function parseListOutput(stdout: string): Map<string, string[]> {
+  const grouped = new Map<string, string[]>();
+  
+  // Section header pattern: "AGENTS  (3)" or "MCP SERVERS  (2)"
+  const sectionRe = /^([A-Z][A-Z ]+\S)\s+\(\d+\)/;
+  const nameRe = /^  (\S+)/; // two-space indent = resource name
+  
+  let currentKind = '';
+  for (const line of stdout.split('\n')) {
+    const sectionMatch = sectionRe.exec(line);
+    if (sectionMatch) {
+      currentKind = sectionMatch[1];
+      grouped.set(currentKind, []);
       continue;
     }
-
-    const parts = line.split('|').map(p => p.trim());
-    if (parts.length < 2) continue;
-
-    const info: ResourceInfo = {
-      kind: parts[0],
-      name: parts[1],
-      description: parts[2] || '',
-    };
-
-    const list = grouped.get(info.kind) || [];
-    list.push(info);
-    grouped.set(info.kind, list);
+    if (currentKind) {
+      const nameMatch = nameRe.exec(line);
+      if (nameMatch) {
+        grouped.get(currentKind)!.push(nameMatch[1]);
+      }
+    }
   }
 
   return grouped;
@@ -38,13 +38,12 @@ export class ResourceTreeItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
     public readonly kind: string,
-    public readonly name: string,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState,
     public readonly description?: string,
   ) {
     super(label, collapsibleState);
-    this.tooltip = this.description || `${this.kind}: ${this.name}`;
-    this.contextValue = this.name ? 'resource' : 'kind';
+    this.tooltip = this.description || `${this.kind}: ${this.label}`;
+    this.contextValue = collapsibleState === vscode.TreeItemCollapsibleState.None ? 'resource' : 'kind';
   }
 }
 
@@ -65,7 +64,7 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
   async getChildren(element?: ResourceTreeItem): Promise<ResourceTreeItem[]> {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspaceFolder) {
-      return [new ResourceTreeItem('No workspace folder open', 'error', '', vscode.TreeItemCollapsibleState.None)];
+      return [new ResourceTreeItem('No workspace folder open', 'error', vscode.TreeItemCollapsibleState.None)];
     }
 
     try {
@@ -77,7 +76,7 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
         const items: ResourceTreeItem[] = [];
         
         if (grouped.size === 0) {
-          return [new ResourceTreeItem('No xcaffold project detected', 'info', '', vscode.TreeItemCollapsibleState.None, 'Create a project.xcf to get started.')];
+          return [new ResourceTreeItem('No xcaffold project detected', 'info', vscode.TreeItemCollapsibleState.None, 'Create a project.xcf to get started.')];
         }
 
         for (const kind of Array.from(grouped.keys()).sort()) {
@@ -85,7 +84,6 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
           items.push(new ResourceTreeItem(
             `${kind} (${list.length})`,
             kind,
-            '',
             vscode.TreeItemCollapsibleState.Collapsed,
           ));
         }
@@ -93,16 +91,28 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
       } else {
         // Child of a kind: list resources
         const resources = grouped.get(element.kind) || [];
-        return resources.map(r => new ResourceTreeItem(
-          r.name,
-          r.kind,
-          r.name,
-          vscode.TreeItemCollapsibleState.None,
-          r.description
+        return resources.map(name => new ResourceTreeItem(
+          name,
+          element.kind,
+          vscode.TreeItemCollapsibleState.None
         ));
       }
     } catch (err: any) {
-      return [new ResourceTreeItem('CLI Error: Check output channel', 'error', '', vscode.TreeItemCollapsibleState.None, err.message)];
+      const msg: string = err.message ?? '';
+      // Treat any list failure caused by missing project files as a friendly state
+      if (
+        msg.includes('no *.xcf files found') ||
+        msg.includes('no project.xcf') ||
+        msg.includes('parse error') ||
+        (err.exitCode !== undefined && err.exitCode !== 0 && !msg.includes('binary not found'))
+      ) {
+        return [new ResourceTreeItem(
+          'No xcaffold project detected', 'info',
+          vscode.TreeItemCollapsibleState.None,
+          'Create a project.xcf to get started.'
+        )];
+      }
+      return [new ResourceTreeItem('CLI Error: Check output channel', 'error', vscode.TreeItemCollapsibleState.None, msg)];
     }
   }
 }

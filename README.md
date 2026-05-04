@@ -10,7 +10,7 @@
 - **💎 Intelligence & Autocomplete**: Full JSON Schema integration for all `.xcf` resource kinds (Agents, Skills, Rules, etc.).
 - **📊 Interactive Graph**: Visualize your project topology with an interactive D3.js-powered resource graph.
 - **🌲 Resource Explorer**: Browse your project resources grouped by kind in the dedicated sidebar.
-- **⚡ Command Palette**: Run `apply`, `status`, `list`, and `import` directly from the Command Palette.
+- **⚡ Command Palette**: Run `apply`, `status`, `list`, `import`, `init`, `export`, and `graph` directly from the Command Palette.
 
 ## Requirements
 

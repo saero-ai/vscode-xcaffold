@@ -13,6 +13,8 @@ export const XCAFFOLD_COMMANDS: CommandDef[] = [
   { id: 'xcaffold.status', args: ['status'] },
   { id: 'xcaffold.list', args: ['list'] },
   { id: 'xcaffold.import', args: ['import'] },
+  { id: 'xcaffold.init', args: ['init'] },
+  { id: 'xcaffold.export', args: ['export'] },
 ];
 
 /**

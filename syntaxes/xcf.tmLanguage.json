@@ -1,0 +1,9 @@
+{
+  "scopeName": "source.yaml.xcf",
+  "name": "Xcaffold Manifest",
+  "patterns": [
+    {
+      "include": "source.yaml"
+    }
+  ]
+}

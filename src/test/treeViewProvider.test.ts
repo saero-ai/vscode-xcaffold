@@ -2,29 +2,33 @@ import * as assert from 'assert';
 import { parseListOutput } from '../treeViewProvider';
 
 suite('TreeViewProvider', () => {
-  test('parseListOutput parses xcaffold list output into grouped map', () => {
-    // xcaffold list output format: KIND | NAME | DESCRIPTION
+  test('parseListOutput parses real xcaffold list output into grouped map', () => {
+    // Real xcaffold list output format
     const stdout = [
-      'KIND | NAME | DESCRIPTION',
-      '---- | ---- | -----------',
-      'agent | coder | Primary coding assistant',
-      'agent | reviewer | Security review specialist',
-      'skill | audit | Security audit procedure',
+      'xcaffold  ·  2 agents  ·  1 skills',
+      '',
+      'AGENTS  (2)',
+      '  coder',
+      '  reviewer',
+      '',
+      'SKILLS  (1)',
+      '  audit',
     ].join('\n');
 
     const grouped = parseListOutput(stdout);
     assert.strictEqual(grouped.size, 2);
-    assert.ok(grouped.has('agent'));
-    assert.ok(grouped.has('skill'));
+    assert.ok(grouped.has('AGENTS'));
+    assert.ok(grouped.has('SKILLS'));
     
-    const agents = grouped.get('agent')!;
+    const agents = grouped.get('AGENTS')!;
     assert.strictEqual(agents.length, 2);
-    assert.strictEqual(agents[0].name, 'coder');
-    assert.strictEqual(agents[1].name, 'reviewer');
+    assert.strictEqual(agents[0], 'coder');
+    assert.strictEqual(agents[1], 'reviewer');
   });
 
   test('parseListOutput handles empty output', () => {
-    const grouped = parseListOutput('KIND | NAME | DESCRIPTION\n---- | ---- | -----------');
-    assert.strictEqual(grouped.size, 0);
+    const grouped = parseListOutput('xcaffold  ·  0 agents\n\nAGENTS  (0)');
+    assert.strictEqual(grouped.size, 1); // Group exists but is empty
+    assert.strictEqual(grouped.get('AGENTS')?.length, 0);
   });
 });

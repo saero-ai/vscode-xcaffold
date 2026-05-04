@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { getOutputChannel } from './outputChannel';
 
 export interface CliResult {
@@ -7,8 +7,31 @@ export interface CliResult {
   stderr: string;
 }
 
+/**
+ * Resolve the full path to the xcaffold binary.
+ * VS Code's PATH doesn't include shell-managed dirs (go/bin, homebrew, etc.),
+ * so we ask the login shell for the resolved path.
+ */
+function resolveXcaffoldPath(binaryPath: string): string {
+  if (binaryPath !== 'xcaffold') {
+    return binaryPath; // user explicitly configured a full path
+  }
+  try {
+    const shell = process.env.SHELL || '/bin/zsh';
+    const resolved = execSync(`${shell} -l -c 'which xcaffold'`, { timeout: 3000 }).toString().trim();
+    if (resolved) return resolved;
+  } catch {
+    // fall through to default
+  }
+  return binaryPath;
+}
+
 export class XcaffoldCli {
-  constructor(private readonly binaryPath: string = 'xcaffold') {}
+  private readonly resolvedPath: string;
+
+  constructor(private readonly binaryPath: string = 'xcaffold') {
+    this.resolvedPath = resolveXcaffoldPath(binaryPath);
+  }
 
   /**
    * run executes the xcaffold binary with the given arguments.
@@ -17,9 +40,9 @@ export class XcaffoldCli {
   run(args: string[], cwd: string): Promise<CliResult> {
     return new Promise((resolve, reject) => {
       const ch = getOutputChannel();
-      ch.appendLine(`> ${this.binaryPath} ${args.join(' ')}`);
+      ch.appendLine(`> ${this.resolvedPath} ${args.join(' ')}`);
 
-      const proc = spawn(this.binaryPath, args, { cwd, shell: false });
+      const proc = spawn(this.resolvedPath, args, { cwd, shell: false });
       let stdout = '';
       let stderr = '';
 
@@ -39,7 +62,7 @@ export class XcaffoldCli {
         if (exitCode === 0) {
           resolve({ exitCode, stdout, stderr });
         } else {
-          const err: any = new Error(`xcaffold exited ${exitCode}: ${stderr.trim()}`);
+          const err: any = new Error(`xcaffold exited ${exitCode}: ${stderr.trim() || stdout.trim()}`);
           err.exitCode = exitCode;
           err.stdout = stdout;
           err.stderr = stderr;
@@ -49,7 +72,7 @@ export class XcaffoldCli {
 
       proc.on('error', (err) => {
         if ((err as any).code === 'ENOENT') {
-          reject(new Error(`xcaffold binary not found at '${this.binaryPath}'. Please ensure it is installed and on your PATH.`));
+          reject(new Error(`xcaffold binary not found at '${this.resolvedPath}'. Please ensure it is installed and on your PATH.`));
         } else {
           reject(err);
         }

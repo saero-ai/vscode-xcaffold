@@ -26,4 +26,12 @@ suite('DiagnosticProvider', () => {
     assert.strictEqual(diags[0].range.start.line, 1);
     assert.strictEqual(diags[1].range.start.line, 9);
   });
+
+  test('parseValidateOutput handles generic validation failure', () => {
+    const output = '✗  Validation failed: invalid schema at root';
+    const diags = parseValidateOutput(output, '/workspace/agent.xcf');
+    assert.strictEqual(diags.length, 1);
+    assert.strictEqual(diags[0].range.start.line, 0);
+    assert.ok(diags[0].message.includes('Validation failed'));
+  });
 });

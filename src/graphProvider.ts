@@ -49,7 +49,8 @@ export class XcaffoldGraphProvider {
 
     try {
       const result = await this.cli.run(['graph', '--format', 'json'], this.workspaceFolder);
-      const data = JSON.parse(result.stdout);
+      const scopes = JSON.parse(result.stdout);
+      const data = Array.isArray(scopes) ? scopes[0] : scopes;
       webview.html = this._getHtmlForWebview(webview, '', data);
     } catch (err: any) {
       webview.html = this._getHtmlForWebview(webview, `Error: ${err.message}`);
@@ -116,13 +117,13 @@ export class XcaffoldGraphProvider {
             const container = svg.append("g");
 
             const simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id(d => d.id).distance(100))
+                .force("link", d3.forceLink(data.edges).id(d => d.id).distance(100))
                 .force("charge", d3.forceManyBody().strength(-300))
                 .force("center", d3.forceCenter(width / 2, height / 2));
 
             const link = container.append("g")
                 .selectAll("line")
-                .data(data.links)
+                .data(data.edges)
                 .join("line")
                 .attr("class", "link");
 
@@ -137,7 +138,7 @@ export class XcaffoldGraphProvider {
             node.append("text")
                 .attr("x", 12)
                 .attr("y", 4)
-                .text(d => d.id);
+                .text(d => d.label || d.id);
 
             simulation.on("tick", () => {
                 link

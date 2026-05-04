@@ -19,10 +19,30 @@
   ],
   "activationEvents": [
     "onLanguage:yaml",
-    "workspaceContains:**/*.xcf"
+    "onLanguage:xcf",
+    "workspaceContains:**/*.xcf",
+    "onView:xcaffoldExplorer"
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "languages": [
+      {
+        "id": "xcf",
+        "aliases": ["Xcaffold Manifest", "xcf"],
+        "extensions": [".xcf"],
+        "icon": {
+          "light": "logo.svg",
+          "dark": "logo.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "xcf",
+        "scopeName": "source.yaml.xcf",
+        "path": "./syntaxes/xcf.tmLanguage.json"
+      }
+    ],
     "yaml.schemas": {
       "./schemas/xcaffold-schema.json": "*.xcf"
     },
@@ -55,6 +75,16 @@
       {
         "command": "xcaffold.import",
         "title": "xcaffold: Import from Providers",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.init",
+        "title": "xcaffold: Initialize Project",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.export",
+        "title": "xcaffold: Export compiled manifests",
         "category": "xcaffold"
       },
       {
