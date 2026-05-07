@@ -1,7 +1,7 @@
 // src/schemaViewerProvider.ts
 //
 // R-12: Schema viewer webview. Quick pick to select a kind, then runs
-// `xcaffold help --xcf <kind>` and renders the schema reference
+// `xcaffold help --xcaf <kind>` and renders the schema reference
 // with fields grouped by group name.
 
 import * as vscode from 'vscode';
@@ -31,7 +31,7 @@ const KNOWN_KINDS = [
 ];
 
 /**
- * parseSchemaOutput extracts field definitions from `help --xcf` output.
+ * parseSchemaOutput extracts field definitions from `help --xcaf` output.
  * Tries JSON first, falls back to text parsing.
  */
 export function parseSchemaOutput(stdout: string): SchemaField[] {
@@ -182,7 +182,7 @@ export class SchemaViewerProvider extends BaseWebview {
     let stdout: string;
     try {
       const result = await this.dataSource.fetch(
-        ['help', '--xcf', this.selectedKind],
+        ['help', '--xcaf', this.selectedKind],
         this.workspaceFolder,
       );
       stdout = result.stdout;

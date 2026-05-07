@@ -1,7 +1,7 @@
 {
   "name": "vscode-xcaffold",
   "displayName": "xcaffold",
-  "description": "xcaffold .xcf manifest authoring — schema validation, autocomplete, and CLI commands",
+  "description": "xcaffold .xcaf manifest authoring — schema validation, autocomplete, and CLI commands",
   "version": "0.2.0",
   "publisher": "saero-ai",
   "icon": "logo.png",
@@ -22,12 +22,20 @@
   ],
   "activationEvents": [
     "onLanguage:yaml",
-    "workspaceContains:**/*.xcf"
+    "workspaceContains:**/*.xcaf"
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "languages": [
+      {
+        "id": "yaml",
+        "extensions": [
+          ".xcaf"
+        ]
+      }
+    ],
     "yaml.schemas": {
-      "./schemas/xcaffold-schema.json": "*.xcf"
+      "./schemas/xcaffold-schema.json": "*.xcaf"
     },
     "commands": [
       {
@@ -141,14 +149,14 @@
     "snippets": [
       {
         "language": "yaml",
-        "path": "./snippets/xcf.json"
+        "path": "./snippets/xcaf.json"
       }
     ],
     "menus": {
       "editor/title": [
         {
           "command": "xcaffold.validateFile",
-          "when": "resourceExtname == .xcf",
+          "when": "resourceExtname == .xcaf",
           "group": "xcaffold@1"
         }
       ],

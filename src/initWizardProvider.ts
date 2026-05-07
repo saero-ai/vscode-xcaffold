@@ -114,15 +114,15 @@ export async function runInitWizard(
     }
   }
 
-  // Step 3: Check if project.xcf already exists
-  const projectXcfPath = path.join(workspaceRoot, 'project.xcf');
+  // Step 3: Check if project.xcaf already exists
+  const projectXcfPath = path.join(workspaceRoot, 'project.xcaf');
   let forceFlag = false;
 
   if (fs.existsSync(projectXcfPath)) {
     const overwrite = await vscode.window.showQuickPick(
-      ['Yes - Overwrite existing project.xcf', 'No - Cancel'],
+      ['Yes - Overwrite existing project.xcaf', 'No - Cancel'],
       {
-        placeHolder: 'project.xcf already exists',
+        placeHolder: 'project.xcaf already exists',
         title: 'xcaffold Init: Overwrite?',
       }
     );

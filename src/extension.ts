@@ -25,11 +25,11 @@ const INDEX_DEBOUNCE_MS = 500;
 let _diffPreview: DiffPreviewProvider | undefined;
 
 /**
- * buildXcfIndex scans all workspace .xcf files and populates the index.
+ * buildXcfIndex scans all workspace .xcaf files and populates the index.
  */
 async function buildXcfIndex(index: XcfIndex): Promise<void> {
   index.clear();
-  const files = await vscode.workspace.findFiles('**/*.xcf', '**/node_modules/**');
+  const files = await vscode.workspace.findFiles('**/*.xcaf', '**/node_modules/**');
   for (const file of files) {
     try {
       const doc = await vscode.workspace.openTextDocument(file);
@@ -72,16 +72,16 @@ function initStatusBar(cli: XcaffoldCli, workspaceFolderPath: string, statusBar:
 }
 
 /**
- * setupFileWatchers sets up watchers for .xcf file changes.
+ * setupFileWatchers sets up watchers for .xcaf file changes.
  */
 function setupFileWatchers(scheduleIndexRefresh: () => void): { saveWatcher: vscode.Disposable; deleteWatcher: vscode.FileSystemWatcher } {
   const saveWatcher = vscode.workspace.onDidSaveTextDocument((doc) => {
-    if (doc.fileName.endsWith('.xcf')) {
+    if (doc.fileName.endsWith('.xcaf')) {
       scheduleIndexRefresh();
     }
   });
 
-  const deleteWatcher = vscode.workspace.createFileSystemWatcher('**/*.xcf');
+  const deleteWatcher = vscode.workspace.createFileSystemWatcher('**/*.xcaf');
   deleteWatcher.onDidDelete(() => scheduleIndexRefresh());
   deleteWatcher.onDidCreate(() => scheduleIndexRefresh());
 
@@ -319,14 +319,14 @@ export async function activate(
   const statusBar = new StatusBarProvider();
   initStatusBar(cli, workspaceFolderPath || '', statusBar);
 
-  // 6b. Register CodeLens and Definition providers for .xcf files
+  // 6b. Register CodeLens and Definition providers for .xcaf files
   const codeLensProvider = vscode.languages.registerCodeLensProvider(
-    { scheme: 'file', pattern: '**/*.xcf' },
+    { scheme: 'file', pattern: '**/*.xcaf' },
     new XcfCodeLensProvider(),
   );
 
   const definitionProvider = vscode.languages.registerDefinitionProvider(
-    { scheme: 'file', pattern: '**/*.xcf' },
+    { scheme: 'file', pattern: '**/*.xcaf' },
     new XcfDefinitionProvider(xcfIndex),
   );
 

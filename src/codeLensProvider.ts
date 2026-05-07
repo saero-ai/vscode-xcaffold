@@ -91,7 +91,7 @@ export function buildCodeLenses(kindLines: KindLine[]): vscode.CodeLens[] {
 
 /**
  * XcfCodeLensProvider shows Apply and Validate actions above kind: lines
- * in .xcf files.
+ * in .xcaf files.
  */
 export class XcfCodeLensProvider implements vscode.CodeLensProvider {
   provideCodeLenses(

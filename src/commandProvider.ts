@@ -196,9 +196,9 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
       }
 
       const filePath = editor.document.fileName;
-      if (!filePath.endsWith('.xcf')) {
+      if (!filePath.endsWith('.xcaf')) {
         vscode.window.showErrorMessage(
-          'xcaffold: Active file is not an .xcf manifest.'
+          'xcaffold: Active file is not an .xcaf manifest.'
         );
         return;
       }

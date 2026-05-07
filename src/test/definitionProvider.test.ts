@@ -126,7 +126,7 @@ suite('DefinitionProvider', () => {
       index.setEntry({
         kind: 'skill',
         name: 'tdd',
-        fileUri: '/workspace/xcf/skills/tdd.xcf',
+        fileUri: '/workspace/xcaf/skills/tdd.xcaf',
         nameLine: 3,
       });
 
@@ -139,7 +139,7 @@ suite('DefinitionProvider', () => {
       ];
       const result = resolveDefinition(index, lines, 3, 10);
       assert.ok(result, 'should resolve to a location');
-      assert.strictEqual(result!.uri, '/workspace/xcf/skills/tdd.xcf');
+      assert.strictEqual(result!.uri, '/workspace/xcaf/skills/tdd.xcaf');
       assert.strictEqual(result!.line, 3);
     });
 
@@ -148,7 +148,7 @@ suite('DefinitionProvider', () => {
       index.setEntry({
         kind: 'agent',
         name: 'developer',
-        fileUri: '/workspace/xcf/agents/developer.xcf',
+        fileUri: '/workspace/xcaf/agents/developer.xcaf',
         nameLine: 2,
       });
 
@@ -158,7 +158,7 @@ suite('DefinitionProvider', () => {
       ];
       const result = resolveDefinition(index, lines, 1, 10);
       assert.ok(result, 'should resolve to a location');
-      assert.strictEqual(result!.uri, '/workspace/xcf/agents/developer.xcf');
+      assert.strictEqual(result!.uri, '/workspace/xcaf/agents/developer.xcaf');
     });
 
     test('falls back to resolveByName when kind-specific lookup misses', () => {
@@ -166,7 +166,7 @@ suite('DefinitionProvider', () => {
       index.setEntry({
         kind: 'skill',
         name: 'tdd',
-        fileUri: '/workspace/xcf/skills/tdd.xcf',
+        fileUri: '/workspace/xcaf/skills/tdd.xcaf',
         nameLine: 3,
       });
 
@@ -179,7 +179,7 @@ suite('DefinitionProvider', () => {
       ];
       const result = resolveDefinition(index, lines, 2, 20);
       assert.ok(result, 'should resolve via fallback');
-      assert.strictEqual(result!.uri, '/workspace/xcf/skills/tdd.xcf');
+      assert.strictEqual(result!.uri, '/workspace/xcaf/skills/tdd.xcaf');
     });
 
     test('returns null when word not found in index', () => {

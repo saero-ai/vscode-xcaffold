@@ -3,14 +3,14 @@ import { parseValidateOutput } from '../diagnosticProvider';
 
 suite('DiagnosticProvider', () => {
   test('parseValidateOutput returns empty array for empty stderr', () => {
-    const diags = parseValidateOutput('', '/workspace/agent.xcf');
+    const diags = parseValidateOutput('', '/workspace/agent.xcaf');
     assert.strictEqual(diags.length, 0);
   });
 
   test('parseValidateOutput parses line:col error format', () => {
-    // xcaffold validate usually outputs: filename.xcf:LINE:COL: message
-    const stderr = 'agent.xcf:5:3: unknown field "model-version"';
-    const diags = parseValidateOutput(stderr, '/workspace/agent.xcf');
+    // xcaffold validate usually outputs: filename.xcaf:LINE:COL: message
+    const stderr = 'agent.xcaf:5:3: unknown field "model-version"';
+    const diags = parseValidateOutput(stderr, '/workspace/agent.xcaf');
     assert.strictEqual(diags.length, 1);
     assert.strictEqual(diags[0].range.start.line, 4); // 0-indexed
     assert.ok(diags[0].message.includes('model-version'));
@@ -18,10 +18,10 @@ suite('DiagnosticProvider', () => {
 
   test('parseValidateOutput parses multi-line errors', () => {
     const stderr = [
-      'agent.xcf:2:1: unknown field "badinput"',
-      'agent.xcf:10:1: missing required field "name"',
+      'agent.xcaf:2:1: unknown field "badinput"',
+      'agent.xcaf:10:1: missing required field "name"',
     ].join('\n');
-    const diags = parseValidateOutput(stderr, '/workspace/agent.xcf');
+    const diags = parseValidateOutput(stderr, '/workspace/agent.xcaf');
     assert.strictEqual(diags.length, 2);
     assert.strictEqual(diags[0].range.start.line, 1);
     assert.strictEqual(diags[1].range.start.line, 9);
@@ -29,7 +29,7 @@ suite('DiagnosticProvider', () => {
 
   test('parseValidateOutput handles generic validation failure', () => {
     const output = '✗  Validation failed: invalid schema at root';
-    const diags = parseValidateOutput(output, '/workspace/agent.xcf');
+    const diags = parseValidateOutput(output, '/workspace/agent.xcaf');
     assert.strictEqual(diags.length, 1);
     assert.strictEqual(diags[0].range.start.line, 0);
     assert.ok(diags[0].message.includes('Validation failed'));

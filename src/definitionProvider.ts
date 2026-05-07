@@ -152,9 +152,9 @@ export function resolveDefinition(
 }
 
 /**
- * XcfDefinitionProvider implements go-to-definition for .xcf files.
+ * XcfDefinitionProvider implements go-to-definition for .xcaf files.
  * Ctrl+click / F12 on a resource name (inside skills:, rules:, agents:
- * arrays) jumps to the corresponding .xcf file.
+ * arrays) jumps to the corresponding .xcaf file.
  */
 export class XcfDefinitionProvider implements vscode.DefinitionProvider {
   constructor(private xcfIndex: XcfIndex) {}

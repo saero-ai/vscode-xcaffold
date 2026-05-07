@@ -14,7 +14,7 @@ export interface XcfEntry {
 }
 
 /**
- * parseFrontmatter extracts kind and name from .xcf file content.
+ * parseFrontmatter extracts kind and name from .xcaf file content.
  * Handles both frontmatter-delimited (---) and pure YAML formats (project kind only).
  * Returns null if kind or name cannot be determined.
  */

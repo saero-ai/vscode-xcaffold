@@ -35,7 +35,7 @@ suite('Extension wiring', () => {
     assert.ok(cmd, 'xcaffold.diff must be registered (preview)');
   });
 
-  test('validateFile is available in editor/title for .xcf files', () => {
+  test('validateFile is available in editor/title for .xcaf files', () => {
     const menus = pkg.contributes.menus;
     const editorTitle = menus['editor/title'];
     assert.ok(editorTitle, 'editor/title menus must exist');

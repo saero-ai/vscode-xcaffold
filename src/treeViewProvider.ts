@@ -54,7 +54,7 @@ export class ResourceTreeItem extends vscode.TreeItem {
         if (entry) {
           this.command = {
             command: 'vscode.open',
-            title: 'Open .xcf File',
+            title: 'Open .xcaf File',
             arguments: [vscode.Uri.file(entry.fileUri)],
           };
         }
@@ -97,7 +97,7 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
         const items: ResourceTreeItem[] = [];
 
         if (grouped.size === 0) {
-          return [new ResourceTreeItem('No xcaffold project detected', 'info', vscode.TreeItemCollapsibleState.None, 'Create a project.xcf to get started.')];
+          return [new ResourceTreeItem('No xcaffold project detected', 'info', vscode.TreeItemCollapsibleState.None, 'Create a project.xcaf to get started.')];
         }
 
         for (const kind of Array.from(grouped.keys()).sort()) {

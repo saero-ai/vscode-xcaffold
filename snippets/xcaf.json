@@ -1,5 +1,5 @@
 {
-  "xcf-agent": {
+  "xcaf-agent": {
     "prefix": ["agent", "kind: agent"],
     "description": "xcaffold agent resource",
     "scope": "yaml",
@@ -15,7 +15,7 @@
       "${0}"
     ]
   },
-  "xcf-skill": {
+  "xcaf-skill": {
     "prefix": ["skill", "kind: skill"],
     "description": "xcaffold skill resource",
     "scope": "yaml",
@@ -30,7 +30,7 @@
       "${0}"
     ]
   },
-  "xcf-rule": {
+  "xcaf-rule": {
     "prefix": ["rule", "kind: rule"],
     "description": "xcaffold rule resource",
     "scope": "yaml",
@@ -45,7 +45,7 @@
       "${0}"
     ]
   },
-  "xcf-workflow": {
+  "xcaf-workflow": {
     "prefix": ["workflow", "kind: workflow"],
     "description": "xcaffold workflow resource",
     "scope": "yaml",
@@ -60,7 +60,7 @@
       "${0}"
     ]
   },
-  "xcf-mcp": {
+  "xcaf-mcp": {
     "prefix": ["mcp", "kind: mcp"],
     "description": "xcaffold MCP server resource",
     "scope": "yaml",

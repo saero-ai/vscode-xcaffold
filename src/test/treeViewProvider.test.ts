@@ -39,7 +39,7 @@ suite('ResourceTreeItem click-to-open', () => {
     index.setEntry({
       kind: 'AGENTS',
       name: 'reviewer',
-      fileUri: '/workspace/xcf/agents/reviewer.xcf',
+      fileUri: '/workspace/xcaf/agents/reviewer.xcaf',
       nameLine: 3,
     });
 

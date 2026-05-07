@@ -114,7 +114,7 @@ suite('XcfIndex', () => {
       const entry: XcfEntry = {
         kind: 'agent',
         name: 'reviewer',
-        fileUri: '/workspace/xcf/agents/reviewer.xcf',
+        fileUri: '/workspace/xcaf/agents/reviewer.xcaf',
         nameLine: 3,
       };
       index.setEntry(entry);
@@ -128,10 +128,10 @@ suite('XcfIndex', () => {
       index.setEntry({
         kind: 'agent',
         name: 'reviewer',
-        fileUri: '/workspace/xcf/agents/reviewer.xcf',
+        fileUri: '/workspace/xcaf/agents/reviewer.xcaf',
         nameLine: 3,
       });
-      index.removeByUri('/workspace/xcf/agents/reviewer.xcf');
+      index.removeByUri('/workspace/xcaf/agents/reviewer.xcaf');
 
       const result = index.resolve('agent', 'reviewer');
       assert.strictEqual(result, undefined);
@@ -142,7 +142,7 @@ suite('XcfIndex', () => {
       index.setEntry({
         kind: 'skill',
         name: 'tdd',
-        fileUri: '/workspace/xcf/skills/tdd.xcf',
+        fileUri: '/workspace/xcaf/skills/tdd.xcaf',
         nameLine: 3,
       });
 
@@ -156,7 +156,7 @@ suite('XcfIndex', () => {
       index.setEntry({
         kind: 'agent',
         name: 'reviewer',
-        fileUri: '/workspace/xcf/agents/reviewer.xcf',
+        fileUri: '/workspace/xcaf/agents/reviewer.xcaf',
         nameLine: 3,
       });
       index.clear();

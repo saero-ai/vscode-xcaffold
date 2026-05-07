@@ -13,7 +13,7 @@ export function parseValidateOutput(output: string, filePath: string): vscode.Di
   const diags: vscode.Diagnostic[] = [];
   const fileName = path.basename(filePath);
   
-  // Pattern: filename.xcf:LINE:COL: message
+  // Pattern: filename.xcaf:LINE:COL: message
   const escapedFileName = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const lineRe = new RegExp(`${escapedFileName}:(\\d+):(\\d+):\\s*(.+)`);
 
@@ -44,7 +44,7 @@ export function parseValidateOutput(output: string, filePath: string): vscode.Di
  */
 export function registerDiagnosticProvider(cli: XcaffoldCli): vscode.Disposable {
   const listener = vscode.workspace.onDidSaveTextDocument(async (doc) => {
-    if (!doc.fileName.endsWith('.xcf')) return;
+    if (!doc.fileName.endsWith('.xcaf')) return;
 
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? path.dirname(doc.fileName);
 
