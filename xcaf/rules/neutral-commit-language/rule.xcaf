@@ -1,0 +1,60 @@
+---
+kind: rule
+version: "1.0"
+name: neutral-commit-language
+description: "Commit messages must use neutral, feature-oriented language — never reference cleanup processes, prohibited terms, or internal phases"
+targets:
+  claude: {}
+  gemini: {}
+  antigravity: {}
+---
+# Neutral Commit Language
+
+## The Problem
+
+Commit messages that say "remove prohibited terms" or "sanitize internal references" tell anyone reading the history that something was being hidden. The commit message itself becomes the disclosure. This is a public repository — the git log is permanent.
+
+## Commit Format
+
+All commits MUST follow Conventional Commits:
+
+```
+<type>(<scope>): <description>
+```
+
+Valid types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`
+
+Valid scopes: `extension`, `webview`, `test`, `ci`, `schema`, `syntax`
+
+## Prohibited Patterns in Commit Messages
+
+NEVER write a commit message that contains any of the following:
+
+| Prohibited Pattern | Why |
+|---|---|
+| "remove prohibited ..." | Announces that a prohibition list exists |
+| "sanitize internal ..." | Announces that internal terminology was present |
+| "remove internal references" | Same |
+| "drop internal ..." | Same |
+| "scrub ..." (in a cleanup context) | Implies something was being concealed |
+| "clean up proprietary ..." | Announces proprietary content existed |
+| "enforce alignment with ..." | Implies a hidden constraint |
+| "Phase 1", "Phase 2", "Phase N" | Exposes internal development milestones |
+
+## What to Write Instead
+
+Describe the change in terms of what improved — not what was removed or corrected.
+
+| Wrong | Right |
+|---|---|
+| `remove prohibited terms and fix broken links` | `fix broken links and update terminology` |
+| `sanitize internal terminology` | `standardize terminology` |
+| `remove internal references from source code` | `update terminology in source code` |
+| `drop internal field-group numbering` | `simplify field-group headings` |
+| `clean up proprietary tool references` | `update tool references in documentation` |
+
+## The Underlying Principle
+
+Write every commit message as if this is the only version of reality. There was no "before" state with internal terms — there is only the current, clean state. The commit improves, standardizes, simplifies, or updates. It never removes, sanitizes, scrubs, or cleans up something that "should not have been there."
+
+User instructions are private. Commit messages are public. Keep them separate.

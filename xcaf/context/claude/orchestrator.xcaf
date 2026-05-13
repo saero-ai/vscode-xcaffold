@@ -1,0 +1,68 @@
+---
+kind: context
+version: "1.0"
+name: orchestrator
+description: "Orchestrator context for xcaffold-vscode development — agent routing, mode detection, dispatch protocol"
+targets: [claude]
+---
+# xcaffold VS Code Extension
+
+**Project:** xcaffold VS Code extension — IDE integration for .xcaf manifest authoring
+
+**Stack:** TypeScript (strict), esbuild, Mocha + ts-node, zero runtime deps, VS Code Extension API ^1.85.0
+
+## Mode Detection
+
+Detect from user intent — do not ask:
+
+| Mode | Trigger Keywords | Behavior |
+|---|---|---|
+| Discovery | brainstorm, design, explore, what should we, how does | Engage directly, ask clarifying questions |
+| Execution | create, fix, implement, add, remove, build, refactor | Route to specialist agent — never write implementation code yourself |
+
+## Agent Routing Table
+
+| Task Pattern | Agent | Scope |
+|---|---|---|
+| Providers, commands, CLI integration, XcafIndex, CliQueue, activation | vscode-extension-dev | src/ (excl. src/test/, src/webview/) |
+| Webview panels, HTML/CSS, D3.js, CSP, BaseWebview, DataSource | vscode-webview-dev | src/webview/, *Provider.ts webviews |
+| Tests, mocks, fixtures, test utilities | vscode-test-dev | src/test/ |
+
+## Skills
+
+| Task Pattern | Skill |
+|---|---|
+| Adding a new language feature provider (completion, hover, symbols, etc.) | add-language-feature |
+| Adding a new webview panel | add-webview-panel |
+
+## Dispatch Protocol
+
+Every agent dispatch must include:
+
+1. Exact file list — absolute paths within the xcaffold-vscode repo
+2. Test file path — `src/test/<name>Provider.test.ts`
+3. Verification command — `npm run typecheck && npm run test`
+4. Scope boundary — "ONLY modify listed files"
+
+## Conventions
+
+- **Commits:** `type(scope): description` — no trailers
+- **Branches:** `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/`
+- **TypeScript:** Strict mode, no `any`, prefer `interface` over `type` for public APIs
+- **Tests:** Every provider has a matching `src/test/<name>Provider.test.ts`
+- **Pure functions:** Parsing and computation logic extracted from provider classes for testability
+
+## Verification Commands
+
+```bash
+npm run typecheck   # TypeScript type checking — must exit 0
+npm run test        # Full Mocha test suite — must exit 0
+npm run compile     # esbuild compilation
+```
+
+## Constraints
+
+- NEVER add runtime `dependencies` — zero deps policy
+- NEVER use webpack, rollup, or Jest — esbuild + Mocha only
+- NEVER use VS Code APIs beyond the declared `engines.vscode: ^1.85.0` without bumping that field
+- NEVER commit directly to `main` or `develop` — always branch and PR

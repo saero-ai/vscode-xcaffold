@@ -2,3 +2,17 @@ node_modules
 dist
 *.vsix
 .worktrees/
+.xcaffold/
+
+# Compiled harness output (source of truth is xcaf/)
+.claude/
+.gemini/
+.cursor/
+.agents/
+CLAUDE.md
+GEMINI.md
+AGENTS.md
+
+# Copilot harness only (preserve workflows, templates, CODEOWNERS)
+.github/copilot-instructions.md
+.github/copilot/

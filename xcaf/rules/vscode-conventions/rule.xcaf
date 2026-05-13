@@ -1,0 +1,75 @@
+---
+kind: rule
+version: "1.0"
+name: vscode-conventions
+description: "VS Code extension development standards — esbuild bundler, Mocha+ts-node tests, zero runtime deps, strict TypeScript"
+activation: always
+targets:
+  claude: {}
+  gemini: {}
+  antigravity: {}
+---
+# VS Code Extension Development Conventions
+
+## Bundler
+
+Use **esbuild only** (`esbuild.config.mjs`). Never introduce webpack, rollup, or vite. The build scripts are:
+
+- `compile` — esbuild development build
+- `compile:production` — esbuild production build (minified, tree-shaken)
+- `watch` — esbuild in watch mode for development
+
+Do not add new bundler configuration files. All bundler options live in `esbuild.config.mjs`.
+
+## Test Runner
+
+Use **Mocha + ts-node only** for unit tests. Never use Jest, vitest, or `@vscode/test-electron` for unit-level testing. The `test` script runs Mocha with ts-node as the loader. The `pretest` script runs `typecheck` before every test run to catch type errors early.
+
+## Dependencies
+
+**Zero runtime dependencies.** Every package in `package.json` must be a `devDependency`. The extension bundles all required code via esbuild at compile time. Before adding any package, confirm it is only needed at build or test time. If code from a package is needed at runtime, vendor the relevant source directly or write the equivalent in-house.
+
+## TypeScript
+
+- Strict mode is enabled (`"strict": true` in tsconfig.json). No `any` escapes. No `@ts-ignore`.
+- Typecheck command: `tsc -p ./ --noEmit`. This must exit 0 before tests run.
+- All new source files must be `.ts` files. No plain `.js` in `src/`.
+
+## Activation
+
+The extension activates on two conditions only:
+
+- `onLanguage:xcaf` — when an xcaf file is the active editor
+- `workspaceContains:**/*.xcaf` — when the workspace contains xcaf files
+
+Never use `*` as an activation event. Activating on every workspace wastes resources for users who do not use xcaffold.
+
+## Disposable Pattern
+
+Every provider registration returns a `vscode.Disposable`. Push all disposables to `context.subscriptions` during activation so VS Code disposes them cleanly when the extension deactivates.
+
+```ts
+// Correct pattern
+const provider = registerXxxProvider(cli);
+context.subscriptions.push(provider);
+```
+
+Never hold disposables in module-level variables or dispose them manually in a custom cleanup function unless necessary — `context.subscriptions` handles lifecycle automatically.
+
+## No Side Effects at Import Time
+
+All initialization logic must run inside `activate()`. Never perform file I/O, spawn processes, create providers, or register commands at module scope. Module-level code runs when the module is first imported, which may happen before the extension is activated.
+
+```ts
+// Wrong — runs at import time
+const index = buildXcafIndex();
+
+// Correct — runs only when VS Code activates the extension
+export async function activate(context: vscode.ExtensionContext) {
+    const index = await buildXcafIndex();
+}
+```
+
+## VS Code API Version
+
+The minimum engine version is `^1.85.0`. Do not use VS Code APIs introduced after 1.85.0 without first bumping the `engines.vscode` field in `package.json` and updating the CI matrix accordingly.

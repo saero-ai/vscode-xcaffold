@@ -1,0 +1,7 @@
+kind: project
+version: "1.0"
+name: xcaffold-vscode
+targets:
+  - antigravity
+  - claude
+  - gemini

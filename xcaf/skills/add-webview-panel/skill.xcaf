@@ -1,0 +1,186 @@
+---
+kind: skill
+version: "1.0"
+name: add-webview-panel
+description: "Step-by-step guide for creating a new webview panel that extends BaseWebview with CSP, nonce, and DataSource integration"
+allowed-tools: [Read, Edit, Write, Bash, Glob, Grep]
+artifacts: [references]
+targets:
+  claude: {}
+  gemini: {}
+  antigravity: {}
+---
+# Add Webview Panel
+
+## Purpose
+
+Use this skill when creating a new webview panel in the xcaffold VS Code extension. Webview panels extend `BaseWebview`, use nonce-based Content Security Policy, and access CLI data through the `DataSource` interface.
+
+## Prerequisites
+
+- xcaffold-vscode repo checked out and `npm install` completed
+- `npm run typecheck` passing on the current branch
+- `npm run test` passing on the current branch
+- Familiar with `src/webview/baseWebview.ts` and `src/webview/dataSource.ts`
+
+## Steps
+
+### 1. Create the provider file
+
+Create `src/<name>Provider.ts` extending `BaseWebview`. Name the file using the panel's function in camelCase, for example `fidelityProvider.ts` or `statusDashProvider.ts`.
+
+```ts
+import * as vscode from 'vscode';
+import { BaseWebview } from './webview/baseWebview';
+import { DataSource } from './webview/dataSource';
+
+export class <Name>Provider extends BaseWebview {
+    constructor(
+        context: vscode.ExtensionContext,
+        private readonly dataSource: DataSource
+    ) {
+        super(context, '<name>', '<Panel Title>');
+    }
+
+    protected getHtml(webview: vscode.Webview): string {
+        const nonce = this.getNonce();
+        const scriptUri = webview.asWebviewUri(
+            vscode.Uri.joinPath(this._context.extensionUri, 'out', '<name>.js')
+        );
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none';
+                 script-src 'nonce-${nonce}';
+                 style-src 'nonce-${nonce}';
+                 img-src ${webview.cspSource};
+                 font-src ${webview.cspSource};">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><Panel Title></title>
+</head>
+<body>
+    <div id="root"></div>
+    <script nonce="${nonce}" src="${scriptUri}"></script>
+</body>
+</html>`;
+    }
+
+    protected handleMessage(message: unknown): void {
+        // Handle postMessage replies from the webview context
+    }
+}
+```
+
+### 2. Implement getHtml(webview)
+
+`getHtml` must return HTML that satisfies the CSP contract:
+
+- Call `this.getNonce()` at the top — use the returned value for every inline `<script nonce="...">` and `<style nonce="...">` tag
+- Load scripts via `webview.asWebviewUri()` — never use bare file paths or external CDN URLs
+- The CSP template is: `default-src 'none'; script-src 'nonce-{nonce}'; style-src 'nonce-{nonce}'; img-src ${webview.cspSource}; font-src ${webview.cspSource};`
+- Never use `unsafe-inline` in any CSP directive
+
+### 3. Implement handleMessage(message)
+
+`handleMessage` receives messages sent from the webview context via `window.acquireVsCodeApi().postMessage(...)`. Parse the message type and dispatch to the appropriate action:
+
+```ts
+protected handleMessage(message: unknown): void {
+    if (typeof message !== 'object' || message === null) { return; }
+    const msg = message as { type: string; payload?: unknown };
+    switch (msg.type) {
+        case 'requestData':
+            this.loadAndSend();
+            break;
+    }
+}
+```
+
+### 4. Create the CLI output parser
+
+Extract CLI output parsing into a **pure function** at the top of the file. This function takes a raw string (stdout from the CLI) and returns a typed result. Keep it separate from the class so it can be unit-tested without a VS Code host.
+
+```ts
+// Pure function — testable without VS Code
+export function parse<Name>Output(raw: string): <OutputType> {
+    // Parse JSON or text output from xcaffold CLI
+    // Return a typed result or throw on malformed input
+}
+```
+
+### 5. Register the command in extension.ts
+
+Add the command registration inside `activate()`:
+
+```ts
+const <name>Provider = new <Name>Provider(context, dataSource);
+context.subscriptions.push(<name>Provider);
+
+const <name>Command = vscode.commands.registerCommand(
+    'xcaffold.<name>',
+    () => <name>Provider.reveal()
+);
+context.subscriptions.push(<name>Command);
+```
+
+### 6. Add command to package.json
+
+Add the command to the `contributes.commands` array:
+
+```json
+{
+    "command": "xcaffold.<name>",
+    "title": "<Panel Title>",
+    "category": "Xcaffold"
+}
+```
+
+Optionally add a keybinding or menu entry under `contributes.menus` if the command should appear in the command palette or editor context menu.
+
+### 7. Add to viewsWelcome (optional)
+
+If the panel should appear in the xcaffold sidebar view, add a `viewsWelcome` entry in package.json pointing to this command. Only do this for panels that represent a primary workflow surface.
+
+### 8. Create the test file
+
+Create `src/test/<name>Provider.test.ts`. Test the pure parser function directly:
+
+```ts
+import * as assert from 'assert';
+import { parse<Name>Output } from '../../<name>Provider';
+
+suite('<Name>Provider', () => {
+    test('parses valid CLI output', () => {
+        const raw = '{"status": "ok"}';
+        const result = parse<Name>Output(raw);
+        assert.strictEqual(result.status, 'ok');
+    });
+
+    test('throws on malformed output', () => {
+        assert.throws(() => parse<Name>Output('not json'), /SyntaxError/);
+    });
+});
+```
+
+### 9. Run verification
+
+Both commands must exit 0 before the work is considered complete:
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm run test        # Mocha suite
+```
+
+## Anti-Patterns
+
+| Anti-Pattern | Why It Fails |
+|---|---|
+| Using `unsafe-inline` in CSP | Security defect — allows XSS via injected scripts |
+| Referencing external CDN URLs in script-src or style-src | No external network allowed in webview context |
+| Loading scripts by absolute file path instead of asWebviewUri() | Webview context blocks file:// URIs; extension resources must be converted |
+| Reusing the same nonce across requests | Nonce must be unique per response — call getNonce() fresh each time getHtml() is called |
+| Putting CLI parsing logic inside the class | Cannot unit-test without VS Code host; pure function extraction is required |
+| Calling DataSource methods in the constructor | Data fetching must happen in response to user action or a message, not at construction time |
+| Adding a runtime `dependencies` entry in package.json | Extension ships with zero runtime deps |

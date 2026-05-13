@@ -1,0 +1,133 @@
+---
+kind: skill
+version: "1.0"
+name: add-language-feature
+description: "Step-by-step guide for adding a new VS Code language feature provider (CompletionItem, Hover, DocumentSymbol, Reference, Rename, CodeAction, SemanticTokens, etc.)"
+allowed-tools: [Read, Edit, Write, Bash, Glob, Grep]
+artifacts: [references]
+targets:
+  claude: {}
+  gemini: {}
+  antigravity: {}
+---
+# Add Language Feature
+
+## Purpose
+
+Use this skill when implementing a new VS Code language feature provider for the xcaffold extension. Language feature providers respond to editor events (cursor hover, keystroke, save) and surface information or edits back to the editor.
+
+## Prerequisites
+
+- xcaffold-vscode repo checked out and `npm install` completed
+- `npm run typecheck` passing on the current branch
+- `npm run test` passing on the current branch
+- VS Code API reference consulted (`xcaf/skills/add-language-feature/references/vscode-api-tiers.md`)
+
+## Steps
+
+### 1. Identify the VS Code language API
+
+Decide which provider interface to implement. Consult `xcaf/skills/add-language-feature/references/vscode-api-tiers.md` for the full list and priority tiers. Confirm the interface name (e.g., `vscode.CompletionItemProvider`, `vscode.HoverProvider`) before writing any code.
+
+### 2. Create the provider file
+
+Create `src/<name>Provider.ts`. Name the file using the provider's short function name in camelCase, for example `completionProvider.ts` or `hoverProvider.ts`.
+
+Extract all parsing or computation logic into a **pure function** at the top of the file. The pure function takes the document text and position as plain arguments (no VS Code API types) so it can be unit-tested without a VS Code host.
+
+```ts
+// Pure function — testable without VS Code
+export function resolveCompletionItems(lineText: string, position: number): string[] {
+    // ... logic here
+}
+
+// Provider class — thin wrapper
+export class XcafCompletionProvider implements vscode.CompletionItemProvider {
+    provideCompletionItems(
+        document: vscode.TextDocument,
+        position: vscode.Position
+    ): vscode.CompletionItem[] {
+        const line = document.lineAt(position).text;
+        const names = resolveCompletionItems(line, position.character);
+        return names.map(n => new vscode.CompletionItem(n, vscode.CompletionItemKind.Field));
+    }
+}
+```
+
+### 3. Follow the pure function extraction pattern
+
+Parsing logic MUST live in a pure function separate from the provider class. This is non-negotiable: the test suite runs under ts-node without a VS Code host, so provider classes that call VS Code APIs in their constructor or static methods cannot be instantiated in tests.
+
+### 4. Register the provider in extension.ts
+
+Add the registration call inside `activate()`. Use `vscode.languages.register<Type>Provider` with a document selector scoped to `.xcaf` files:
+
+```ts
+const completionProvider = vscode.languages.registerCompletionItemProvider(
+    { scheme: 'file', pattern: '**/*.xcaf' },
+    new XcafCompletionProvider(index),
+    '.', ':'   // trigger characters, if any
+);
+context.subscriptions.push(completionProvider);
+```
+
+The disposable returned by `registerXxxProvider` MUST be pushed to `context.subscriptions`. Never hold it in a module-level variable.
+
+### 5. Add package.json contributes if needed
+
+Some providers require a `package.json` entry in the `contributes` section. Check:
+
+| Provider Type | Needs package.json entry? |
+|---|---|
+| CompletionItemProvider | No |
+| HoverProvider | No |
+| DocumentSymbolProvider | No |
+| ReferenceProvider | No |
+| RenameProvider | No |
+| CodeActionProvider | Yes — add `codeActionsProvider` entry |
+| SemanticTokensProvider | Yes — declare `semanticTokenTypes` and `semanticTokenModifiers` |
+| FileDecorationProvider | No |
+| DocumentFormattingEditProvider | No |
+
+### 6. Create the test file
+
+Create `src/test/<name>Provider.test.ts`. Import and test the pure function directly. Do not instantiate the provider class in tests.
+
+```ts
+import * as assert from 'assert';
+import { resolveCompletionItems } from '../../<name>Provider';
+
+suite('<Name>Provider', () => {
+    test('returns field names for empty line', () => {
+        const result = resolveCompletionItems('', 0);
+        assert.ok(result.length > 0);
+    });
+
+    test('returns empty array for unknown context', () => {
+        const result = resolveCompletionItems('random text with no xcaf context', 5);
+        assert.deepStrictEqual(result, []);
+    });
+});
+```
+
+### 7. Run verification
+
+Both commands must exit 0 before the work is considered complete:
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm run test        # Mocha suite
+```
+
+If typecheck fails, fix all type errors before running tests. TypeScript strict mode is enforced — no `any` escapes.
+
+## Anti-Patterns
+
+| Anti-Pattern | Why It Fails |
+|---|---|
+| Putting parsing logic inside the provider class | Cannot unit-test without a VS Code host; forces integration tests |
+| Using `any` to bypass strict TypeScript | Violates the zero-`any` rule; typecheck will fail |
+| Importing from `src/test/` in production code | Test utilities are not for production use |
+| Adding a runtime `dependencies` entry in package.json | Extension ships with zero runtime deps; use esbuild to bundle devDependencies |
+| Registering the provider outside of `activate()` | Side effects at import time violate the no-side-effects-at-import rule |
+| Using VS Code APIs introduced after 1.85.0 without bumping engines.vscode | Breaks the declared minimum engine version |

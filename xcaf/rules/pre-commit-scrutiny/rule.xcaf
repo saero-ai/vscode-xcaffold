@@ -1,0 +1,56 @@
+---
+kind: rule
+version: "1.0"
+name: pre-commit-scrutiny
+description: "Mandates scanning for prohibited patterns before any git commit to prevent leaking confidential information in this public repository"
+targets:
+  claude: {}
+  gemini: {}
+  antigravity: {}
+---
+# Pre-Commit Scrutiny
+
+This is a public repository. Commit history is permanent and visible to everyone. Every commit must be clean before it lands.
+
+## When This Rule Applies
+
+Before any git commit, staged changes, or push operation, the agent MUST scan all staged files for prohibited patterns. No exceptions — even documentation-only changes must be scanned.
+
+## Prohibited Patterns
+
+Halt the commit immediately if any of the following are found:
+
+| Pattern | Why It Must Not Appear |
+|---|---|
+| `xcaffold-platform` | Internal project name |
+| `assembly.floor`, `cloud.hub` | Proprietary internal terms |
+| `/Volumes/Projects/` | Machine-specific absolute path |
+| `/Users/<any-username>/` | Machine-specific absolute path |
+| `Phase N`, `sprint`, `roadmap`, `milestone` | Internal process terminology |
+| `premium`, `enterprise`, `saas` | Proprietary product tier names |
+
+Also check commit messages and code comments for the following — these terms are acceptable in documentation and comparison contexts but MUST NOT appear in commit messages or inline code comments referencing internal workflows:
+
+- Third-party AI tool names used in a context that reveals internal workflow details
+
+## Scan Command
+
+Run this before staging any commit:
+
+```bash
+git diff --cached -- . | grep -inE '(xcaffold-platform|assembly\.floor|cloud\.hub|/Volumes/Projects/|/Users/[^/]+/|Phase [0-9]|sprint|roadmap|milestone|premium|enterprise|saas)' || echo "clean"
+```
+
+If the output is anything other than `clean`, stop immediately.
+
+## Recovery Procedure
+
+1. Halt the commit process
+2. Identify every file containing a prohibited pattern
+3. Replace or remove the prohibited content with neutral, feature-oriented language
+4. Re-run the scan command to confirm clean output
+5. Proceed with the commit only after the scan returns `clean`
+
+## No Exceptions
+
+Minor changes and documentation updates are not exempt. A single prohibited term in a `// comment` or a markdown file is enough to block the commit.

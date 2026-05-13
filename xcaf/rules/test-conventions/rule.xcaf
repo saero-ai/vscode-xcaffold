@@ -1,0 +1,71 @@
+---
+kind: rule
+version: "1.0"
+name: test-conventions
+description: "Test file naming, mock setup, pure function extraction, and Mocha test patterns for the xcaffold VS Code extension"
+paths: ["src/test/**"]
+targets:
+  claude: {}
+  gemini: {}
+  antigravity: {}
+---
+# Test Conventions
+
+## File Naming
+
+- Test files: `src/test/<moduleName>.test.ts` — one test file per source module
+- Test runner: `src/test/runTests.ts` — Mocha entry point; do not modify casually
+- Mock setup: `src/test/setup.ts` — global vscode module mocks, loaded before all tests
+
+## Mock Setup (setup.ts)
+
+`setup.ts` uses mock-require to replace the `vscode` module with a comprehensive mock object before any test file runs.
+
+Mocks provided:
+
+- `window` — showInformationMessage, showErrorMessage, showWarningMessage, showQuickPick, createWebviewPanel, createOutputChannel, createStatusBarItem
+- `commands` — registerCommand, executeCommand
+- `languages` — registerCodeLensProvider, registerDefinitionProvider, registerDiagnosticProvider, createDiagnosticCollection
+- `workspace` — getConfiguration, findFiles, openTextDocument, onDidSaveTextDocument, onDidChangeConfiguration, createFileSystemWatcher
+- `Uri`, `Range`, `Position`, `Diagnostic`, `DiagnosticSeverity`, `TreeItem`, `EventEmitter`, `ConfigurationTarget`
+
+Rules:
+
+- NEVER import the real `vscode` module in test files — always rely on the mocks provided by setup.ts
+- If a test needs a mock behavior that setup.ts does not provide, EXTEND setup.ts — do not create local per-file mocks
+- Local mock overrides create silent divergence and cause test failures that are hard to trace
+
+## Pure Function Extraction
+
+Every parser, transformer, or output formatter MUST be a pure function that accepts string input and returns structured data.
+
+Example:
+
+```typescript
+parseFrontmatter(text: string): { kind: string; name: string; nameLine: number } | null
+```
+
+- Pure functions are testable without any vscode dependency — test them directly without mocks
+- If you find yourself needing complex mocks to test a function, extract the logic into a pure function first
+- Putting parsing logic inside a class method that also touches vscode APIs couples two concerns — split them
+
+## Test Structure
+
+```typescript
+describe('ClassName or functionName', () => {
+  it('should handle normal case', () => { ... });
+  it('should handle edge case', () => { ... });
+  it('should return null for invalid input', () => { ... }); // negative test
+});
+```
+
+- Use `describe` for grouping by module or function name
+- Use `it` with a plain English description of the scenario
+- Each `it` block tests exactly one behavior
+
+## Mandatory Requirements
+
+- Every new provider or command MUST have a matching test file in `src/test/`
+- Every parser function MUST have at least one positive test case AND at least one negative test case
+- Tests MUST be deterministic — no network calls, no real filesystem access, no timers
+- Test names must be descriptive enough to identify the failure without reading the test body

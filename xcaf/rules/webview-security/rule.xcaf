@@ -1,0 +1,93 @@
+---
+kind: rule
+version: "1.0"
+name: webview-security
+description: "Webview Content Security Policy, nonce requirements, and resource loading rules"
+activation: always
+targets:
+  claude: {}
+  gemini: {}
+  antigravity: {}
+---
+# Webview Security Rules
+
+## Content Security Policy
+
+Every webview panel MUST have a Content Security Policy set on `webviewPanel.webview.html`. The required baseline policy is:
+
+```
+default-src 'none';
+script-src 'nonce-{nonce}';
+style-src 'nonce-{nonce}';
+img-src ${webview.cspSource};
+font-src ${webview.cspSource};
+```
+
+Replace `{nonce}` with a freshly generated nonce value on every render. The `webview.cspSource` expression expands to the allowed VS Code scheme at runtime.
+
+## Nonce Generation
+
+Generate a new nonce for every render call using a cryptographically random source:
+
+```ts
+import * as crypto from 'crypto';
+
+function getNonce(): string {
+    return crypto.randomBytes(16).toString('hex');
+}
+```
+
+NEVER reuse a nonce across renders. Each call to the HTML-generation function must produce a fresh nonce. Reusing nonces defeats the entire purpose of nonce-based CSP.
+
+## No unsafe-inline
+
+NEVER add `'unsafe-inline'` to `script-src` or `style-src`. Inline scripts and styles must use the nonce attribute (`<script nonce="...">`, `<style nonce="...">`). The nonce approach is strictly preferred because it allows inline content without opening the policy to all inline execution.
+
+## Resource Loading
+
+ALL resources — JavaScript bundles, CSS files, images, and fonts — MUST be loaded through `webview.asWebviewUri()`. This converts a workspace or extension URI into a form the webview can load under the `vscode-resource:` scheme.
+
+```ts
+const scriptUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview.js')
+);
+```
+
+NEVER use `file://` URIs in webview HTML. NEVER load resources from external CDN URLs (e.g., `https://cdn.jsdelivr.net/`). Doing so breaks the CSP and creates a network dependency.
+
+## postMessage Communication
+
+All data exchange between the webview and the extension host MUST use the VS Code postMessage API:
+
+- Extension → webview: `panel.webview.postMessage({ type: '...', payload: ... })`
+- Webview → extension: `vscode.postMessage({ type: '...', payload: ... })` (using the VS Code API object acquired in the webview)
+- Extension receives webview messages via: `panel.webview.onDidReceiveMessage`
+
+NEVER pass data through URL query parameters, hash fragments, or shared global variables. URL parameters are visible to any code running in the webview context and cannot be scoped.
+
+## BaseWebview Pattern
+
+All webview providers MUST extend `BaseWebview` (`src/webview/baseWebview.ts`). `BaseWebview` enforces:
+
+- Nonce generation on every render
+- CSP header construction
+- Resource URI conversion via `asWebviewUri()`
+- Local resource root restriction
+
+Do not copy-paste the nonce or CSP logic into a new provider. Extend `BaseWebview` and override only the content-rendering method.
+
+## Local Resource Roots
+
+Set `localResourceRoots` to the minimum set of directories the webview needs. Typically:
+
+```ts
+localResourceRoots: [
+    vscode.Uri.joinPath(context.extensionUri, 'dist')
+]
+```
+
+NEVER pass `[]` (empty — blocks all resources) or omit the field in a way that grants access to the entire filesystem. Restrict to the `dist/` output directory of the extension, which is the only directory webview scripts should need to load.
+
+## No eval
+
+NEVER use `eval()`, `new Function(string)`, or `innerHTML` with any string that originates from user input, workspace file contents, or CLI output in webview scripts. These patterns bypass the CSP nonce mechanism and create code-injection risks.

@@ -1,0 +1,106 @@
+---
+kind: rule
+version: "1.0"
+name: extension-architecture
+description: "Architectural patterns for the xcaffold VS Code extension — provider registration, CLI integration, index, concurrency, data source"
+activation: always
+targets:
+  claude: {}
+  gemini: {}
+  antigravity: {}
+---
+# Extension Architecture Patterns
+
+## Provider Registration
+
+All providers are instantiated inside helper functions called from `activate()` in `extension.ts`. Every returned value is pushed to `context.subscriptions` for automatic lifecycle management.
+
+```ts
+// Correct pattern in activate()
+const provider = registerXxxProvider(cli);
+context.subscriptions.push(provider);
+```
+
+Never register a provider, command, or file watcher outside `activate()`. Registration at module scope runs before the extension is activated and bypasses VS Code's lifecycle management.
+
+## CLI Integration (XcaffoldCli)
+
+All CLI invocations go through `XcaffoldCli.run(args, cwd)`, which returns `Promise<CliResult>`.
+
+```ts
+interface CliResult {
+    exitCode: number;
+    stdout: string;
+    stderr: string;
+}
+```
+
+Key behaviors:
+- Binary path is resolved via a login shell `PATH` lookup so that Go binaries installed under `~/go/bin` and Homebrew-managed paths are found without user configuration.
+- Every invocation runs in the workspace root unless an explicit `cwd` is passed.
+- All stdout and stderr output is forwarded to the xcaffold output channel.
+
+Never spawn `child_process` directly from a provider or webview file. Route every CLI call through `XcaffoldCli`.
+
+## Concurrency (CliQueue)
+
+CLI operations are routed through `CliQueue` to prevent races when multiple providers invoke the CLI simultaneously.
+
+- **Write operations** — `apply`, `init`, `import` — acquire an exclusive async mutex. Only one write runs at a time.
+- **Read operations** — `validate`, `status`, `list`, `fidelity` — run in parallel without blocking each other.
+
+Always pass a `CliQueue` instance when constructing a provider that triggers write commands. The optional `busyCallback` parameter can drive a progress indicator in the UI during long-running writes.
+
+## Symbol Index (XcafIndex)
+
+`XcafIndex` (`src/xcafIndex.ts`) is an in-memory two-way lookup over all `*.xcaf` files in the workspace.
+
+- Built at activation via `buildXcafIndex()`, which scans all `*.xcaf` files.
+- Provides O(1) resolution from `{kind, name}` to file location and the reverse mapping.
+- Updated incrementally via a debounced file watcher (500ms debounce) on save, create, and delete events.
+- Consumed by the tree view (click-to-open), definition provider (go-to-definition), and code lens provider.
+
+Do not replicate kind/name discovery logic in individual providers. Query `XcafIndex` instead.
+
+## DataSource Abstraction
+
+Webview providers access CLI data through the `DataSource` interface (`src/webview/dataSource.ts`), not through `XcaffoldCli` directly.
+
+```ts
+interface DataSource {
+    // provider-specific methods defined per webview
+}
+```
+
+`CliDataSource` is the production implementation that wraps `XcaffoldCli.run()`. This indirection allows the underlying data source to be swapped (e.g., replaced by a platform API) without changing webview rendering code.
+
+When adding a new webview provider:
+1. Define the methods it needs on a new `DataSource` interface or an extension of an existing one.
+2. Implement `CliDataSource` for production use.
+3. Implement a stub or mock for tests.
+4. Pass the `DataSource` to the provider constructor — never import `XcaffoldCli` directly in webview files.
+
+## File Watcher Pattern
+
+Use both `onDidSaveTextDocument` and `FileSystemWatcher` to track xcaf file changes:
+
+- `onDidSaveTextDocument` — fires when a user saves a `*.xcaf` file; triggers a debounced index refresh.
+- `FileSystemWatcher` (`vscode.workspace.createFileSystemWatcher('**/*.xcaf')`) — fires on create and delete events that `onDidSaveTextDocument` does not cover.
+
+Debounce refresh calls with a 500ms `setTimeout`. Always cancel the pending timeout in `dispose()` to prevent callbacks from firing after the provider is deactivated.
+
+```ts
+private _debounceTimer: NodeJS.Timeout | undefined;
+
+private scheduleRefresh(): void {
+    clearTimeout(this._debounceTimer);
+    this._debounceTimer = setTimeout(() => this.refresh(), 500);
+}
+
+dispose(): void {
+    clearTimeout(this._debounceTimer);
+    this._watcher.dispose();
+}
+```
+
+Register both the `FileSystemWatcher` and any event listener disposables in `context.subscriptions`.
