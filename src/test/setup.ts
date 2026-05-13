@@ -111,7 +111,20 @@ mock('vscode', {
     }),
     registerCodeLensProvider: (selector: any, provider: any) => ({ dispose: () => {} }),
     registerDefinitionProvider: (selector: any, provider: any) => ({ dispose: () => {} }),
+    registerDocumentSemanticTokensProvider: (selector: any, provider: any, legend: any) => ({ dispose: () => {} }),
     onDidChangeDiagnostics: (listener: any) => ({ dispose: () => {} }),
+  },
+  SemanticTokensLegend: class {
+    constructor(public tokenTypes: string[], public tokenModifiers: string[] = []) {}
+  },
+  SemanticTokensBuilder: class {
+    private _legend: any;
+    private _data: number[] = [];
+    constructor(legend?: any) { this._legend = legend; }
+    push(line: number, char: number, length: number, tokenType: number, tokenModifiers?: number): void {
+      this._data.push(line, char, length, tokenType, tokenModifiers || 0);
+    }
+    build(): any { return { data: new Uint32Array(this._data) }; }
   },
   Uri: {
     file: (p: string) => ({ fsPath: p, scheme: 'file', path: p }),
