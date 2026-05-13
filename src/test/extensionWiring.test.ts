@@ -45,8 +45,8 @@ suite('Extension wiring', () => {
     );
     assert.ok(validateEntry, 'validateFile must be in editor/title');
     assert.ok(
-      validateEntry.when.includes('xcf'),
-      'validateFile when clause must reference xcf',
+      validateEntry.when.includes('xcaf'),
+      'validateFile when clause must reference xcaf',
     );
   });
 

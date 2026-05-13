@@ -122,7 +122,55 @@ mock('vscode', {
       public command?: { title: string; command: string; arguments?: any[] },
     ) {}
   },
+  Hover: class {
+    constructor(public contents: any, public range?: any) {}
+  },
+  MarkdownString: class {
+    constructor(public value: string = '') {}
+    appendMarkdown(val: string) { this.value += val; return this; }
+    appendCodeblock(code: string, lang?: string) { this.value += code; return this; }
+  },
   Location: class {
     constructor(public uri: any, public range: any) {}
+  },
+  DocumentSymbol: class {
+    public children: any[] = [];
+    constructor(
+      public name: string,
+      public detail: string,
+      public kind: number,
+      public range: any,
+      public selectionRange: any,
+    ) {}
+  },
+  SymbolKind: {
+    File: 0, Module: 1, Namespace: 2, Package: 3, Class: 4,
+    Method: 5, Property: 6, Field: 7, Constructor: 8, Enum: 9,
+    Interface: 10, Function: 11, Variable: 12, Constant: 13,
+    String: 14, Number: 15, Boolean: 16, Array: 17, Object: 18,
+  },
+  CompletionItem: class {
+    public detail: string = '';
+    public insertText: string = '';
+    constructor(public label: string, public kind?: number) {}
+  },
+  CompletionItemKind: {
+    Text: 0, Method: 1, Function: 2, Constructor: 3, Field: 4,
+    Variable: 5, Class: 6, Interface: 7, Module: 8, Property: 9,
+    Unit: 10, Value: 11, Enum: 12, Keyword: 13, Snippet: 14,
+    Color: 15, Reference: 17, File: 16, Folder: 18, EnumMember: 19,
+    Constant: 20, Struct: 21, Event: 22, Operator: 23, TypeParameter: 24,
+  },
+  WorkspaceEdit: class {
+    private _edits: Array<{ uri: any; range: any; newText: string }> = [];
+    replace(uri: any, range: any, newText: string): void {
+      this._edits.push({ uri, range, newText });
+    }
+    get size(): number {
+      const uris = new Set(
+        this._edits.map(e => e.uri.fsPath || e.uri.toString()),
+      );
+      return uris.size;
+    }
   },
 });
