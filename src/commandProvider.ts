@@ -276,18 +276,6 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
     ),
   );
 
-  // Tree context menu: New Resource (stub)
-  disposables.push(
-    vscode.commands.registerCommand(
-      'xcaffold.newResource',
-      async () => {
-        vscode.window.showInformationMessage(
-          'xcaffold: New resource creation coming in a future update.',
-        );
-      },
-    ),
-  );
-
   // Tree context menu: Delete Resource
   disposables.push(
     vscode.commands.registerCommand(

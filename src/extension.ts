@@ -26,6 +26,7 @@ import { XcafRenameProvider } from './renameProvider';
 import { XcafFileDecorationProvider } from './fileDecorationProvider';
 import { XcafSemanticTokenProvider, xcafSemanticLegend } from './semanticTokenProvider';
 import { diagnosticCollection } from './diagnosticProvider';
+import { runNewResourceWizard } from './newResourceProvider';
 
 /** Debounce timeout for xcafIndex refresh (ms). */
 const INDEX_DEBOUNCE_MS = 500;
@@ -427,6 +428,19 @@ export async function activate(
   // 8. Register custom commands
   const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, fidelityCommand, statusDashCommand, schemaViewerCommand } = registerCommands(context, cli, treeProvider, scheduleIndexRefresh, workspaceFolderPath, statusBar, dataSource);
 
+  // 8b. Register New Resource wizard (replaces the stub in commandProvider)
+  const newResourceCommand = vscode.commands.registerCommand(
+    'xcaffold.newResource',
+    () => {
+      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsFolder) {
+        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
+        return;
+      }
+      return runNewResourceWizard(xcafIndex, wsFolder);
+    },
+  );
+
   // 9. Add to subscriptions for cleanup
   context.subscriptions.push(
     diagnosticProvider,
@@ -454,6 +468,7 @@ export async function activate(
     fidelityCommand,
     statusDashCommand,
     schemaViewerCommand,
+    newResourceCommand,
   );
 }
 
