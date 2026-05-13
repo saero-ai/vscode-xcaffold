@@ -126,6 +126,26 @@
         "command": "xcaffold.schemaViewer",
         "title": "xcaffold: Schema Viewer",
         "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.openResource",
+        "title": "xcaffold: Open File",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.findReferences",
+        "title": "xcaffold: Find References",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.newResource",
+        "title": "xcaffold: New Resource...",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.deleteResource",
+        "title": "xcaffold: Delete Resource",
+        "category": "xcaffold"
       }
     ],
     "viewsContainers": {
@@ -181,14 +201,34 @@
       ],
       "view/item/context": [
         {
-          "command": "xcaffold.apply",
+          "command": "xcaffold.openResource",
           "when": "viewItem == resource-item",
-          "group": "xcaffold@1"
+          "group": "navigation@1"
         },
         {
           "command": "xcaffold.validate",
           "when": "viewItem == resource-item",
+          "group": "xcaffold@1"
+        },
+        {
+          "command": "xcaffold.apply",
+          "when": "viewItem == resource-item",
           "group": "xcaffold@2"
+        },
+        {
+          "command": "xcaffold.findReferences",
+          "when": "viewItem == resource-item",
+          "group": "xcaffold@3"
+        },
+        {
+          "command": "xcaffold.deleteResource",
+          "when": "viewItem == resource-item",
+          "group": "xcaffold@9"
+        },
+        {
+          "command": "xcaffold.newResource",
+          "when": "viewItem == kind-group",
+          "group": "navigation@1"
         }
       ],
       "view/title": [

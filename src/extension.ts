@@ -23,6 +23,11 @@ import { XcafHoverProvider } from './hoverProvider';
 import { XcafDocumentSymbolProvider } from './documentSymbolProvider';
 import { XcafReferenceProvider } from './referenceProvider';
 import { XcafRenameProvider } from './renameProvider';
+import { XcafFileDecorationProvider } from './fileDecorationProvider';
+import { XcafSemanticTokenProvider, xcafSemanticLegend } from './semanticTokenProvider';
+import { diagnosticCollection } from './diagnosticProvider';
+import { runNewResourceWizard } from './newResourceProvider';
+import { XcafCodeActionProvider } from './codeActionProvider';
 
 /** Debounce timeout for xcafIndex refresh (ms). */
 const INDEX_DEBOUNCE_MS = 500;
@@ -400,6 +405,29 @@ export async function activate(
     new XcafRenameProvider(xcafIndex),
   );
 
+  const semanticTokenProvider = vscode.languages.registerDocumentSemanticTokensProvider(
+    xcafFilter,
+    new XcafSemanticTokenProvider(schemaCache, xcafIndex),
+    xcafSemanticLegend,
+  );
+
+  // 6c-ii. Register code action provider for quick fixes
+  const codeActionProvider = vscode.languages.registerCodeActionsProvider(
+    xcafFilter,
+    new XcafCodeActionProvider(schemaCache),
+    { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] },
+  );
+
+  // 6d. Register file decoration provider for validation status badges
+  const fileDecoProvider = new XcafFileDecorationProvider(diagnosticCollection);
+  const fileDecoRegistration = vscode.window.registerFileDecorationProvider(fileDecoProvider);
+  const diagnosticChangeListener = vscode.languages.onDidChangeDiagnostics((e) => {
+    const xcafUris = e.uris.filter(u => u.fsPath.endsWith('.xcaf'));
+    if (xcafUris.length > 0) {
+      fileDecoProvider.onDiagnosticsChanged(xcafUris);
+    }
+  });
+
   // 7. Initialize webview data source
   const dataSource = new CliDataSource(
     (args, cwd) => cli.run(args, cwd),
@@ -407,6 +435,19 @@ export async function activate(
 
   // 8. Register custom commands
   const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, fidelityCommand, statusDashCommand, schemaViewerCommand } = registerCommands(context, cli, treeProvider, scheduleIndexRefresh, workspaceFolderPath, statusBar, dataSource);
+
+  // 8b. Register New Resource wizard (replaces the stub in commandProvider)
+  const newResourceCommand = vscode.commands.registerCommand(
+    'xcaffold.newResource',
+    () => {
+      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsFolder) {
+        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
+        return;
+      }
+      return runNewResourceWizard(xcafIndex, wsFolder);
+    },
+  );
 
   // 9. Add to subscriptions for cleanup
   context.subscriptions.push(
@@ -425,12 +466,18 @@ export async function activate(
     documentSymbolProvider,
     referenceProvider,
     renameProvider,
+    semanticTokenProvider,
+    codeActionProvider,
+    fileDecoRegistration,
+    fileDecoProvider,
+    diagnosticChangeListener,
     initWizardCommand,
     importPickerCommand,
     diffCommand,
     fidelityCommand,
     statusDashCommand,
     schemaViewerCommand,
+    newResourceCommand,
   );
 }
 

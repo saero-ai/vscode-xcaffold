@@ -242,5 +242,61 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
   );
   disposables.push(validateFileDisposable);
 
+  // Tree context menu: Open File
+  disposables.push(
+    vscode.commands.registerCommand(
+      'xcaffold.openResource',
+      async (item: { fileUri?: string }) => {
+        if (item?.fileUri) {
+          await vscode.commands.executeCommand(
+            'vscode.open',
+            vscode.Uri.file(item.fileUri),
+          );
+        }
+      },
+    ),
+  );
+
+  // Tree context menu: Find References
+  disposables.push(
+    vscode.commands.registerCommand(
+      'xcaffold.findReferences',
+      async (item: { label?: string }) => {
+        if (item?.label) {
+          await vscode.commands.executeCommand(
+            'workbench.action.findInFiles',
+            {
+              query: String(item.label),
+              isRegex: false,
+              filesToInclude: '**/*.xcaf',
+            },
+          );
+        }
+      },
+    ),
+  );
+
+  // Tree context menu: Delete Resource
+  disposables.push(
+    vscode.commands.registerCommand(
+      'xcaffold.deleteResource',
+      async (item: { fileUri?: string; label?: string }) => {
+        if (!item?.fileUri) {
+          return;
+        }
+        const confirm = await vscode.window.showWarningMessage(
+          `Delete resource "${String(item.label)}"? This will remove the .xcaf file.`,
+          { modal: true },
+          'Delete',
+        );
+        if (confirm === 'Delete') {
+          await vscode.workspace.fs.delete(
+            vscode.Uri.file(item.fileUri),
+          );
+        }
+      },
+    ),
+  );
+
   return vscode.Disposable.from(...disposables);
 }

@@ -31,6 +31,7 @@ mock('vscode', {
       hide: () => {},
       dispose: () => {},
     }),
+    registerFileDecorationProvider: (provider: any) => ({ dispose: () => {} }),
     createWebviewPanel: (viewType: string, title: string, showOptions: any, options: any) => ({
       webview: {
         html: '',
@@ -55,6 +56,15 @@ mock('vscode', {
     getConfiguration: () => ({
       get: (key: string, defaultValue: any) => defaultValue,
     }),
+    openTextDocument: async (_uri: any) => ({ getText: () => '' }),
+    onDidChangeTextDocument: () => ({ dispose: () => {} }),
+    createFileSystemWatcher: () => ({
+      onDidCreate: () => ({ dispose: () => {} }),
+      onDidChange: () => ({ dispose: () => {} }),
+      onDidDelete: () => ({ dispose: () => {} }),
+      dispose: () => {},
+    }),
+    findFiles: async () => [],
   },
   Range: class {
     public start: { line: number; character: number };
@@ -89,6 +99,7 @@ mock('vscode', {
     private _event = () => {};
     get event() { return this._event; }
     fire() {}
+    dispose() {}
   },
   languages: {
     createDiagnosticCollection: (name: string) => ({
@@ -100,6 +111,21 @@ mock('vscode', {
     }),
     registerCodeLensProvider: (selector: any, provider: any) => ({ dispose: () => {} }),
     registerDefinitionProvider: (selector: any, provider: any) => ({ dispose: () => {} }),
+    registerDocumentSemanticTokensProvider: (selector: any, provider: any, legend: any) => ({ dispose: () => {} }),
+    registerCodeActionsProvider: (selector: any, provider: any, metadata?: any) => ({ dispose: () => {} }),
+    onDidChangeDiagnostics: (listener: any) => ({ dispose: () => {} }),
+  },
+  SemanticTokensLegend: class {
+    constructor(public tokenTypes: string[], public tokenModifiers: string[] = []) {}
+  },
+  SemanticTokensBuilder: class {
+    private _legend: any;
+    private _data: number[] = [];
+    constructor(legend?: any) { this._legend = legend; }
+    push(line: number, char: number, length: number, tokenType: number, tokenModifiers?: number): void {
+      this._data.push(line, char, length, tokenType, tokenModifiers || 0);
+    }
+    build(): any { return { data: new Uint32Array(this._data) }; }
   },
   Uri: {
     file: (p: string) => ({ fsPath: p, scheme: 'file', path: p }),
@@ -166,11 +192,24 @@ mock('vscode', {
     replace(uri: any, range: any, newText: string): void {
       this._edits.push({ uri, range, newText });
     }
+    insert(uri: any, position: any, newText: string): void {
+      const range = { start: position, end: position };
+      this._edits.push({ uri, range, newText });
+    }
     get size(): number {
       const uris = new Set(
         this._edits.map(e => e.uri.fsPath || e.uri.toString()),
       );
       return uris.size;
     }
+  },
+  CodeAction: class {
+    public edit: any;
+    public isPreferred: boolean = false;
+    constructor(public title: string, public kind?: any) {}
+  },
+  CodeActionKind: {
+    QuickFix: { value: 'quickfix', append: (val: string) => ({ value: `quickfix.${val}` }) },
+    Refactor: { value: 'refactor', append: (val: string) => ({ value: `refactor.${val}` }) },
   },
 });
