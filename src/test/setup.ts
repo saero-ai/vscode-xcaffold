@@ -31,6 +31,7 @@ mock('vscode', {
       hide: () => {},
       dispose: () => {},
     }),
+    registerFileDecorationProvider: (provider: any) => ({ dispose: () => {} }),
     createWebviewPanel: (viewType: string, title: string, showOptions: any, options: any) => ({
       webview: {
         html: '',
@@ -98,6 +99,7 @@ mock('vscode', {
     private _event = () => {};
     get event() { return this._event; }
     fire() {}
+    dispose() {}
   },
   languages: {
     createDiagnosticCollection: (name: string) => ({
@@ -109,6 +111,7 @@ mock('vscode', {
     }),
     registerCodeLensProvider: (selector: any, provider: any) => ({ dispose: () => {} }),
     registerDefinitionProvider: (selector: any, provider: any) => ({ dispose: () => {} }),
+    onDidChangeDiagnostics: (listener: any) => ({ dispose: () => {} }),
   },
   Uri: {
     file: (p: string) => ({ fsPath: p, scheme: 'file', path: p }),

@@ -23,6 +23,8 @@ import { XcafHoverProvider } from './hoverProvider';
 import { XcafDocumentSymbolProvider } from './documentSymbolProvider';
 import { XcafReferenceProvider } from './referenceProvider';
 import { XcafRenameProvider } from './renameProvider';
+import { XcafFileDecorationProvider } from './fileDecorationProvider';
+import { diagnosticCollection } from './diagnosticProvider';
 
 /** Debounce timeout for xcafIndex refresh (ms). */
 const INDEX_DEBOUNCE_MS = 500;
@@ -400,6 +402,16 @@ export async function activate(
     new XcafRenameProvider(xcafIndex),
   );
 
+  // 6d. Register file decoration provider for validation status badges
+  const fileDecoProvider = new XcafFileDecorationProvider(diagnosticCollection);
+  const fileDecoRegistration = vscode.window.registerFileDecorationProvider(fileDecoProvider);
+  const diagnosticChangeListener = vscode.languages.onDidChangeDiagnostics((e) => {
+    const xcafUris = e.uris.filter(u => u.fsPath.endsWith('.xcaf'));
+    if (xcafUris.length > 0) {
+      fileDecoProvider.onDiagnosticsChanged(xcafUris);
+    }
+  });
+
   // 7. Initialize webview data source
   const dataSource = new CliDataSource(
     (args, cwd) => cli.run(args, cwd),
@@ -425,6 +437,9 @@ export async function activate(
     documentSymbolProvider,
     referenceProvider,
     renameProvider,
+    fileDecoRegistration,
+    fileDecoProvider,
+    diagnosticChangeListener,
     initWizardCommand,
     importPickerCommand,
     diffCommand,
