@@ -17,6 +17,12 @@ import { StatusDashProvider } from './statusDashProvider';
 import { SchemaViewerProvider } from './schemaViewerProvider';
 import { XcafCodeLensProvider } from './codeLensProvider';
 import { XcafDefinitionProvider } from './definitionProvider';
+import { XcafSchemaCache } from './xcafSchema';
+import { XcafCompletionProvider } from './completionProvider';
+import { XcafHoverProvider } from './hoverProvider';
+import { XcafDocumentSymbolProvider } from './documentSymbolProvider';
+import { XcafReferenceProvider } from './referenceProvider';
+import { XcafRenameProvider } from './renameProvider';
 
 /** Debounce timeout for xcafIndex refresh (ms). */
 const INDEX_DEBOUNCE_MS = 500;
@@ -323,6 +329,14 @@ export async function activate(
   const xcafIndex = new XcafIndex();
   await buildXcafIndex(xcafIndex);
 
+  // 3b. Initialize schema cache (non-blocking)
+  const schemaCache = new XcafSchemaCache((args, cwd) => cli.run(args, cwd));
+  if (workspaceFolderPath) {
+    schemaCache.loadAll(workspaceFolderPath).catch(() => {
+      // Swallow — schema cache is advisory, falls back to hardcoded schemas
+    });
+  }
+
   // 4. Set up debounced index refresh with timer disposal
   let indexTimer: ReturnType<typeof setTimeout> | undefined;
   const scheduleIndexRefresh = () => {
@@ -358,6 +372,34 @@ export async function activate(
     new XcafDefinitionProvider(xcafIndex),
   );
 
+  // 6c. Register language intelligence providers for .xcaf files
+  const xcafFilter = { scheme: 'file', pattern: '**/*.xcaf' };
+
+  const completionProvider = vscode.languages.registerCompletionItemProvider(
+    xcafFilter,
+    new XcafCompletionProvider(schemaCache),
+  );
+
+  const hoverProvider = vscode.languages.registerHoverProvider(
+    xcafFilter,
+    new XcafHoverProvider(schemaCache),
+  );
+
+  const documentSymbolProvider = vscode.languages.registerDocumentSymbolProvider(
+    xcafFilter,
+    new XcafDocumentSymbolProvider(),
+  );
+
+  const referenceProvider = vscode.languages.registerReferenceProvider(
+    xcafFilter,
+    new XcafReferenceProvider(xcafIndex),
+  );
+
+  const renameProvider = vscode.languages.registerRenameProvider(
+    xcafFilter,
+    new XcafRenameProvider(xcafIndex),
+  );
+
   // 7. Initialize webview data source
   const dataSource = new CliDataSource(
     (args, cwd) => cli.run(args, cwd),
@@ -378,6 +420,11 @@ export async function activate(
     deleteWatcher,
     codeLensProvider,
     definitionProvider,
+    completionProvider,
+    hoverProvider,
+    documentSymbolProvider,
+    referenceProvider,
+    renameProvider,
     initWizardCommand,
     importPickerCommand,
     diffCommand,

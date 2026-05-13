@@ -56,9 +56,6 @@
         "path": "./fileicons/xcaffold-icon-theme.json"
       }
     ],
-    "yaml.schemas": {
-      "./schemas/xcaffold-schema.json": "*.xcaf"
-    },
     "commands": [
       {
         "command": "xcaffold.apply",
