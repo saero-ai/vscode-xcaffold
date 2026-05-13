@@ -55,6 +55,15 @@ mock('vscode', {
     getConfiguration: () => ({
       get: (key: string, defaultValue: any) => defaultValue,
     }),
+    openTextDocument: async (_uri: any) => ({ getText: () => '' }),
+    onDidChangeTextDocument: () => ({ dispose: () => {} }),
+    createFileSystemWatcher: () => ({
+      onDidCreate: () => ({ dispose: () => {} }),
+      onDidChange: () => ({ dispose: () => {} }),
+      onDidDelete: () => ({ dispose: () => {} }),
+      dispose: () => {},
+    }),
+    findFiles: async () => [],
   },
   Range: class {
     public start: { line: number; character: number };
