@@ -1,7 +1,8 @@
 import * as assert from 'assert';
-import { parseListOutput, ResourceTreeItem, extractMetadataFields } from '../treeViewProvider';
+import { parseListOutput, ResourceTreeItem, extractMetadataFields, XcaffoldTreeProvider } from '../treeViewProvider';
 import { XcafIndex } from '../xcafIndex';
 import * as vscode from 'vscode';
+import { XcaffoldCli, CliResult } from '../xcaffoldCli';
 
 suite('TreeViewProvider', () => {
   test('parseListOutput parses xcaffold list output into grouped map', () => {
@@ -348,5 +349,193 @@ suite('extractMetadataFields', () => {
     const descField = fields.find(f => f.label === 'description');
     assert.ok(descField);
     assert.strictEqual(descField.value, 'A code review agent');
+  });
+});
+
+suite('XcaffoldTreeProvider getChildren integration', () => {
+  const listStdout = [
+    'my-project  .  2 agents  .  1 skill',
+    '',
+    'AGENTS  (2)',
+    '  coder',
+    '  reviewer',
+    '',
+    'SKILLS  (1)',
+    '  audit',
+  ].join('\n');
+
+  const agentXcafContent = [
+    '---',
+    'kind: agent',
+    'name: reviewer',
+    'description: Code review specialist',
+    'targets: [claude, cursor]',
+    'tools: [Read, Write]',
+    '---',
+  ].join('\n');
+
+  function createMockCli(stdout: string): XcaffoldCli {
+    return {
+      run: async () => ({ exitCode: 0, stdout, stderr: '' }),
+      init: async () => {},
+      invalidateCache: () => {},
+    } as unknown as XcaffoldCli;
+  }
+
+  let origWorkspaceFolders: typeof vscode.workspace.workspaceFolders;
+  let origOpenTextDocument: typeof vscode.workspace.openTextDocument;
+
+  setup(() => {
+    origWorkspaceFolders = vscode.workspace.workspaceFolders;
+    origOpenTextDocument = vscode.workspace.openTextDocument;
+
+    (vscode.workspace as any).workspaceFolders = [
+      { uri: { fsPath: '/workspace' }, name: 'workspace', index: 0 },
+    ];
+  });
+
+  teardown(() => {
+    (vscode.workspace as any).workspaceFolders = origWorkspaceFolders;
+    (vscode.workspace as any).openTextDocument = origOpenTextDocument;
+  });
+
+  test('getChildren returns kind-group items at root level', async () => {
+    const cli = createMockCli(listStdout);
+    const provider = new XcaffoldTreeProvider(cli);
+
+    const roots = await provider.getChildren();
+    assert.strictEqual(roots.length, 2);
+    assert.strictEqual(roots[0].itemType, 'kind-group');
+    assert.strictEqual(roots[1].itemType, 'kind-group');
+
+    const labels = roots.map(r => r.label);
+    assert.ok(labels.includes('AGENTS (2)'));
+    assert.ok(labels.includes('SKILLS (1)'));
+  });
+
+  test('getChildren returns resource items for a kind-group', async () => {
+    const cli = createMockCli(listStdout);
+    const provider = new XcaffoldTreeProvider(cli);
+
+    const agentsGroup = new ResourceTreeItem(
+      'AGENTS (2)', 'AGENTS',
+      vscode.TreeItemCollapsibleState.Collapsed, 'kind-group',
+    );
+
+    const resources = await provider.getChildren(agentsGroup);
+    assert.strictEqual(resources.length, 2);
+    assert.strictEqual(resources[0].label, 'coder');
+    assert.strictEqual(resources[1].label, 'reviewer');
+    resources.forEach(r => {
+      assert.strictEqual(r.itemType, 'resource-item');
+      assert.strictEqual(
+        r.collapsibleState,
+        vscode.TreeItemCollapsibleState.Collapsed,
+      );
+    });
+  });
+
+  test('getChildren returns metadata children for a resource-item', async () => {
+    (vscode.workspace as any).openTextDocument = async () => ({
+      getText: () => agentXcafContent,
+    });
+
+    const cli = createMockCli(listStdout);
+    const provider = new XcaffoldTreeProvider(cli);
+
+    const resourceItem = new ResourceTreeItem(
+      'reviewer', 'AGENTS',
+      vscode.TreeItemCollapsibleState.Collapsed, 'resource-item',
+      { fileUri: '/workspace/xcaf/agents/reviewer.xcaf' },
+    );
+
+    const children = await provider.getChildren(resourceItem);
+    assert.strictEqual(children.length, 4);
+
+    assert.strictEqual(children[0].label, 'kind');
+    assert.strictEqual(children[0].description, 'agent');
+    assert.strictEqual(children[1].label, 'description');
+    assert.strictEqual(children[1].description, 'Code review specialist');
+    assert.strictEqual(children[2].label, 'targets');
+    assert.strictEqual(children[2].description, 'claude, cursor');
+    assert.strictEqual(children[3].label, 'tools');
+    assert.strictEqual(children[3].description, '2 tools');
+
+    children.forEach(c => {
+      assert.strictEqual(c.itemType, 'metadata-field');
+      assert.strictEqual(
+        c.collapsibleState,
+        vscode.TreeItemCollapsibleState.None,
+      );
+    });
+  });
+
+  test('getChildren returns empty metadata for resource-item without fileUri', async () => {
+    const cli = createMockCli(listStdout);
+    const provider = new XcaffoldTreeProvider(cli);
+
+    const resourceItem = new ResourceTreeItem(
+      'reviewer', 'AGENTS',
+      vscode.TreeItemCollapsibleState.Collapsed, 'resource-item',
+    );
+
+    // Without fileUri, getChildren should not enter metadata branch
+    const children = await provider.getChildren(resourceItem);
+    assert.strictEqual(children.length, 0);
+  });
+
+  test('getChildren returns empty metadata when file read fails', async () => {
+    (vscode.workspace as any).openTextDocument = async () => {
+      throw new Error('File not found');
+    };
+
+    const cli = createMockCli(listStdout);
+    const provider = new XcaffoldTreeProvider(cli);
+
+    const resourceItem = new ResourceTreeItem(
+      'reviewer', 'AGENTS',
+      vscode.TreeItemCollapsibleState.Collapsed, 'resource-item',
+      { fileUri: '/workspace/xcaf/agents/nonexistent.xcaf' },
+    );
+
+    const children = await provider.getChildren(resourceItem);
+    assert.strictEqual(children.length, 0);
+  });
+
+  test('getChildren returns error item when no workspace is open', async () => {
+    (vscode.workspace as any).workspaceFolders = undefined;
+
+    const cli = createMockCli(listStdout);
+    const provider = new XcaffoldTreeProvider(cli);
+
+    const roots = await provider.getChildren();
+    assert.strictEqual(roots.length, 1);
+    assert.ok((roots[0].label as string).includes('No workspace'));
+  });
+
+  test('getChildren returns info item when CLI returns empty output', async () => {
+    const cli = createMockCli('');
+    const provider = new XcaffoldTreeProvider(cli);
+
+    const roots = await provider.getChildren();
+    assert.strictEqual(roots.length, 1);
+    assert.ok(
+      (roots[0].label as string).includes('No xcaffold project'),
+    );
+  });
+
+  test('getChildren returns error item when CLI throws', async () => {
+    const cli = {
+      run: async () => { throw new Error('binary not found'); },
+      init: async () => {},
+      invalidateCache: () => {},
+    } as unknown as XcaffoldCli;
+    const provider = new XcaffoldTreeProvider(cli);
+
+    const roots = await provider.getChildren();
+    assert.strictEqual(roots.length, 1);
+    assert.ok(
+      (roots[0].label as string).includes('CLI Error'),
+    );
   });
 });
