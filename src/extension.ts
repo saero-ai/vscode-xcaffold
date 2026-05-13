@@ -27,6 +27,7 @@ import { XcafFileDecorationProvider } from './fileDecorationProvider';
 import { XcafSemanticTokenProvider, xcafSemanticLegend } from './semanticTokenProvider';
 import { diagnosticCollection } from './diagnosticProvider';
 import { runNewResourceWizard } from './newResourceProvider';
+import { XcafCodeActionProvider } from './codeActionProvider';
 
 /** Debounce timeout for xcafIndex refresh (ms). */
 const INDEX_DEBOUNCE_MS = 500;
@@ -410,6 +411,13 @@ export async function activate(
     xcafSemanticLegend,
   );
 
+  // 6c-ii. Register code action provider for quick fixes
+  const codeActionProvider = vscode.languages.registerCodeActionsProvider(
+    xcafFilter,
+    new XcafCodeActionProvider(schemaCache),
+    { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] },
+  );
+
   // 6d. Register file decoration provider for validation status badges
   const fileDecoProvider = new XcafFileDecorationProvider(diagnosticCollection);
   const fileDecoRegistration = vscode.window.registerFileDecorationProvider(fileDecoProvider);
@@ -459,6 +467,7 @@ export async function activate(
     referenceProvider,
     renameProvider,
     semanticTokenProvider,
+    codeActionProvider,
     fileDecoRegistration,
     fileDecoProvider,
     diagnosticChangeListener,

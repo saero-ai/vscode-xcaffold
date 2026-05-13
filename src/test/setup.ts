@@ -112,6 +112,7 @@ mock('vscode', {
     registerCodeLensProvider: (selector: any, provider: any) => ({ dispose: () => {} }),
     registerDefinitionProvider: (selector: any, provider: any) => ({ dispose: () => {} }),
     registerDocumentSemanticTokensProvider: (selector: any, provider: any, legend: any) => ({ dispose: () => {} }),
+    registerCodeActionsProvider: (selector: any, provider: any, metadata?: any) => ({ dispose: () => {} }),
     onDidChangeDiagnostics: (listener: any) => ({ dispose: () => {} }),
   },
   SemanticTokensLegend: class {
@@ -191,11 +192,24 @@ mock('vscode', {
     replace(uri: any, range: any, newText: string): void {
       this._edits.push({ uri, range, newText });
     }
+    insert(uri: any, position: any, newText: string): void {
+      const range = { start: position, end: position };
+      this._edits.push({ uri, range, newText });
+    }
     get size(): number {
       const uris = new Set(
         this._edits.map(e => e.uri.fsPath || e.uri.toString()),
       );
       return uris.size;
     }
+  },
+  CodeAction: class {
+    public edit: any;
+    public isPreferred: boolean = false;
+    constructor(public title: string, public kind?: any) {}
+  },
+  CodeActionKind: {
+    QuickFix: { value: 'quickfix', append: (val: string) => ({ value: `quickfix.${val}` }) },
+    Refactor: { value: 'refactor', append: (val: string) => ({ value: `refactor.${val}` }) },
   },
 });
