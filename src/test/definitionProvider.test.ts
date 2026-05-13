@@ -5,7 +5,7 @@ import {
   resolveDefinition,
   ReferenceContext,
 } from '../definitionProvider';
-import { XcfIndex } from '../xcfIndex';
+import { XcafIndex } from '../xcafIndex';
 
 suite('DefinitionProvider', () => {
   suite('extractWordAt', () => {
@@ -121,8 +121,8 @@ suite('DefinitionProvider', () => {
   });
 
   suite('resolveDefinition', () => {
-    test('resolves skill reference via xcfIndex', () => {
-      const index = new XcfIndex();
+    test('resolves skill reference via xcafIndex', () => {
+      const index = new XcafIndex();
       index.setEntry({
         kind: 'skill',
         name: 'tdd',
@@ -144,7 +144,7 @@ suite('DefinitionProvider', () => {
     });
 
     test('resolves agent reference with uppercase index key', () => {
-      const index = new XcfIndex();
+      const index = new XcafIndex();
       index.setEntry({
         kind: 'agent',
         name: 'developer',
@@ -162,7 +162,7 @@ suite('DefinitionProvider', () => {
     });
 
     test('falls back to resolveByName when kind-specific lookup misses', () => {
-      const index = new XcfIndex();
+      const index = new XcafIndex();
       index.setEntry({
         kind: 'skill',
         name: 'tdd',
@@ -183,7 +183,7 @@ suite('DefinitionProvider', () => {
     });
 
     test('returns null when word not found in index', () => {
-      const index = new XcfIndex();
+      const index = new XcafIndex();
 
       const lines = [
         'kind: agent',
@@ -194,7 +194,7 @@ suite('DefinitionProvider', () => {
     });
 
     test('returns null when cursor is on empty position', () => {
-      const index = new XcfIndex();
+      const index = new XcafIndex();
 
       const lines = ['skills: [tdd]'];
       const result = resolveDefinition(index, lines, 0, 7);

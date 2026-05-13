@@ -1,17 +1,17 @@
 {
-  "scopeName": "source.xcf",
+  "scopeName": "source.xcaf",
   "name": "Xcaffold Manifest",
   "patterns": [
     {
       "begin": "\\A(---)$",
       "beginCaptures": {
-        "1": { "name": "punctuation.definition.frontmatter.xcf" }
+        "1": { "name": "punctuation.definition.frontmatter.xcaf" }
       },
       "end": "^(---)$",
       "endCaptures": {
-        "1": { "name": "punctuation.definition.frontmatter.xcf" }
+        "1": { "name": "punctuation.definition.frontmatter.xcaf" }
       },
-      "name": "meta.frontmatter.yaml.xcf",
+      "name": "meta.frontmatter.yaml.xcaf",
       "patterns": [
         {
           "include": "source.yaml"
@@ -21,7 +21,7 @@
     {
       "begin": "\\A(?!---)",
       "end": "(?=notpossible)",
-      "name": "meta.pureyaml.xcf",
+      "name": "meta.pureyaml.xcaf",
       "patterns": [
         {
           "include": "source.yaml"
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "name": "meta.body.markdown.xcf",
+      "name": "meta.body.markdown.xcaf",
       "begin": "(?<=---)$",
       "end": "(?=notpossible)",
       "patterns": [

@@ -90,10 +90,10 @@ export function buildCodeLenses(kindLines: KindLine[]): vscode.CodeLens[] {
 }
 
 /**
- * XcfCodeLensProvider shows Apply and Validate actions above kind: lines
+ * XcafCodeLensProvider shows Apply and Validate actions above kind: lines
  * in .xcaf files.
  */
-export class XcfCodeLensProvider implements vscode.CodeLensProvider {
+export class XcafCodeLensProvider implements vscode.CodeLensProvider {
   provideCodeLenses(
     document: vscode.TextDocument,
   ): vscode.CodeLens[] {

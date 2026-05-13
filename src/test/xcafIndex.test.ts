@@ -1,7 +1,7 @@
 import * as assert from 'assert';
-import { XcfIndex, XcfEntry, parseFrontmatter } from '../xcfIndex';
+import { XcafIndex, XcafEntry, parseFrontmatter } from '../xcafIndex';
 
-suite('XcfIndex', () => {
+suite('XcafIndex', () => {
   suite('parseFrontmatter', () => {
     test('extracts kind and name from valid frontmatter', () => {
       const content = [
@@ -102,16 +102,16 @@ suite('XcfIndex', () => {
     });
   });
 
-  suite('XcfIndex', () => {
+  suite('XcafIndex', () => {
     test('resolve returns undefined for unknown entry', () => {
-      const index = new XcfIndex();
+      const index = new XcafIndex();
       const entry = index.resolve('agent', 'nonexistent');
       assert.strictEqual(entry, undefined);
     });
 
     test('setEntry and resolve round-trip', () => {
-      const index = new XcfIndex();
-      const entry: XcfEntry = {
+      const index = new XcafIndex();
+      const entry: XcafEntry = {
         kind: 'agent',
         name: 'reviewer',
         fileUri: '/workspace/xcaf/agents/reviewer.xcaf',
@@ -124,7 +124,7 @@ suite('XcfIndex', () => {
     });
 
     test('removeByUri removes all entries for a file', () => {
-      const index = new XcfIndex();
+      const index = new XcafIndex();
       index.setEntry({
         kind: 'agent',
         name: 'reviewer',
@@ -138,7 +138,7 @@ suite('XcfIndex', () => {
     });
 
     test('resolveByName returns first match across kinds', () => {
-      const index = new XcfIndex();
+      const index = new XcafIndex();
       index.setEntry({
         kind: 'skill',
         name: 'tdd',
@@ -152,7 +152,7 @@ suite('XcfIndex', () => {
     });
 
     test('clear removes all entries', () => {
-      const index = new XcfIndex();
+      const index = new XcafIndex();
       index.setEntry({
         kind: 'agent',
         name: 'reviewer',

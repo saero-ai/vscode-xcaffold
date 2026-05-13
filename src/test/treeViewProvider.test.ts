@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import { parseListOutput, ResourceTreeItem } from '../treeViewProvider';
-import { XcfIndex } from '../xcfIndex';
+import { XcafIndex } from '../xcafIndex';
 import * as vscode from 'vscode';
 
 suite('TreeViewProvider', () => {
@@ -34,8 +34,8 @@ suite('TreeViewProvider', () => {
 });
 
 suite('ResourceTreeItem click-to-open', () => {
-  test('leaf ResourceTreeItem has command property when xcfIndex has entry', () => {
-    const index = new XcfIndex();
+  test('leaf ResourceTreeItem has command property when xcafIndex has entry', () => {
+    const index = new XcafIndex();
     index.setEntry({
       kind: 'AGENTS',
       name: 'reviewer',
@@ -55,8 +55,8 @@ suite('ResourceTreeItem click-to-open', () => {
     assert.strictEqual(item.command.command, 'vscode.open');
   });
 
-  test('leaf ResourceTreeItem has no command when xcfIndex lacks entry', () => {
-    const index = new XcfIndex();
+  test('leaf ResourceTreeItem has no command when xcafIndex lacks entry', () => {
+    const index = new XcafIndex();
 
     const item = new ResourceTreeItem(
       'ghost',
@@ -70,7 +70,7 @@ suite('ResourceTreeItem click-to-open', () => {
   });
 
   test('leaf ResourceTreeItem has contextValue resource-item', () => {
-    const index = new XcfIndex();
+    const index = new XcafIndex();
 
     const item = new ResourceTreeItem(
       'reviewer',

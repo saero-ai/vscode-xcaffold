@@ -6,7 +6,7 @@ export interface FrontmatterResult {
   nameLine: number; // 0-indexed line number of the name field
 }
 
-export interface XcfEntry {
+export interface XcafEntry {
   kind: string;
   name: string;
   fileUri: string;
@@ -72,12 +72,12 @@ export function parseFrontmatter(content: string): FrontmatterResult | null {
 }
 
 /**
- * XcfIndex maps {kind, name} pairs to file locations.
+ * XcafIndex maps {kind, name} pairs to file locations.
  * Used by tree view (click-to-open) and definition provider (go-to-def).
  */
-export class XcfIndex {
+export class XcafIndex {
   // key: "kind:name" -> entry
-  private entries = new Map<string, XcfEntry>();
+  private entries = new Map<string, XcafEntry>();
   // reverse index: fileUri -> list of keys
   private fileToKeys = new Map<string, string[]>();
 
@@ -85,7 +85,7 @@ export class XcfIndex {
     return `${kind.toLowerCase()}:${name}`;
   }
 
-  setEntry(entry: XcfEntry): void {
+  setEntry(entry: XcafEntry): void {
     const key = this.makeKey(entry.kind, entry.name);
     this.entries.set(key, entry);
 
@@ -96,11 +96,11 @@ export class XcfIndex {
     this.fileToKeys.set(entry.fileUri, keys);
   }
 
-  resolve(kind: string, name: string): XcfEntry | undefined {
+  resolve(kind: string, name: string): XcafEntry | undefined {
     return this.entries.get(this.makeKey(kind, name));
   }
 
-  resolveByName(name: string): XcfEntry | undefined {
+  resolveByName(name: string): XcafEntry | undefined {
     for (const entry of this.entries.values()) {
       if (entry.name === name) {
         return entry;
@@ -124,7 +124,7 @@ export class XcfIndex {
     this.fileToKeys.clear();
   }
 
-  allEntries(): XcfEntry[] {
+  allEntries(): XcafEntry[] {
     return Array.from(this.entries.values());
   }
 }

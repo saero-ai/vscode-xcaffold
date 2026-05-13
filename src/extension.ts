@@ -6,7 +6,7 @@ import { XcaffoldTreeProvider } from './treeViewProvider';
 import { XcaffoldGraphProvider } from './graphProvider';
 import { disposeOutputChannel } from './outputChannel';
 import { checkMinimumVersion } from './versionCheck';
-import { XcfIndex, parseFrontmatter } from './xcfIndex';
+import { XcafIndex, parseFrontmatter } from './xcafIndex';
 import { StatusBarProvider } from './statusBarProvider';
 import { runInitWizard } from './initWizardProvider';
 import { runImportPicker } from './importPickerProvider';
@@ -15,19 +15,44 @@ import { DiffPreviewProvider } from './diffPreviewProvider';
 import { FidelityProvider } from './fidelityProvider';
 import { StatusDashProvider } from './statusDashProvider';
 import { SchemaViewerProvider } from './schemaViewerProvider';
-import { XcfCodeLensProvider } from './codeLensProvider';
-import { XcfDefinitionProvider } from './definitionProvider';
+import { XcafCodeLensProvider } from './codeLensProvider';
+import { XcafDefinitionProvider } from './definitionProvider';
 
-/** Debounce timeout for xcfIndex refresh (ms). */
+/** Debounce timeout for xcafIndex refresh (ms). */
 const INDEX_DEBOUNCE_MS = 500;
 
 /** Module-scoped for deactivate cleanup */
 let _diffPreview: DiffPreviewProvider | undefined;
 
 /**
- * buildXcfIndex scans all workspace .xcaf files and populates the index.
+ * promptIconTheme shows a one-time prompt to enable the xcaffold icon theme.
+ * Fire-and-forget — never awaited so it does not block activation.
  */
-async function buildXcfIndex(index: XcfIndex): Promise<void> {
+function promptIconTheme(context: vscode.ExtensionContext): void {
+  if (context.globalState.get('xcaffold.iconThemePrompted')) {
+    return;
+  }
+  const current = vscode.workspace.getConfiguration('workbench').get<string>('iconTheme');
+  if (current === 'xcaffold-icons') {
+    context.globalState.update('xcaffold.iconThemePrompted', true);
+    return;
+  }
+  vscode.window.showInformationMessage(
+    'Enable xcaffold file icons for .xcaf files?',
+    'Enable',
+    'Not now',
+  ).then((choice) => {
+    if (choice === 'Enable') {
+      vscode.workspace.getConfiguration('workbench').update('iconTheme', 'xcaffold-icons', vscode.ConfigurationTarget.Global);
+    }
+    context.globalState.update('xcaffold.iconThemePrompted', true);
+  });
+}
+
+/**
+ * buildXcafIndex scans all workspace .xcaf files and populates the index.
+ */
+async function buildXcafIndex(index: XcafIndex): Promise<void> {
   index.clear();
   const files = await vscode.workspace.findFiles('**/*.xcaf', '**/node_modules/**');
   for (const file of files) {
@@ -107,13 +132,13 @@ function registerConfigChangeListener(context: vscode.ExtensionContext, cli: Xca
  */
 function registerProviders(
   cli: XcaffoldCli,
-  xcfIndex: XcfIndex,
+  xcafIndex: XcafIndex,
   context: vscode.ExtensionContext
 ): { treeProvider: XcaffoldTreeProvider; diagnosticProvider: vscode.Disposable; commandProvider: vscode.Disposable; treeView: vscode.Disposable; actionsView: vscode.Disposable } {
   const diagnosticProvider = registerDiagnosticProvider(cli);
   const commandProvider = registerCommandProvider(cli);
 
-  const treeProvider = new XcaffoldTreeProvider(cli, xcfIndex);
+  const treeProvider = new XcaffoldTreeProvider(cli, xcafIndex);
   const treeView = vscode.window.registerTreeDataProvider('xcaffoldExplorer', treeProvider);
 
   // Empty provider for Actions panel — content comes from viewsWelcome in package.json
@@ -291,9 +316,12 @@ export async function activate(
   }
   registerConfigChangeListener(context, cli);
 
-  // 3. Initialize xcfIndex
-  const xcfIndex = new XcfIndex();
-  await buildXcfIndex(xcfIndex);
+  // 2b. One-time icon theme prompt (non-blocking, fire-and-forget)
+  promptIconTheme(context);
+
+  // 3. Initialize xcafIndex
+  const xcafIndex = new XcafIndex();
+  await buildXcafIndex(xcafIndex);
 
   // 4. Set up debounced index refresh with timer disposal
   let indexTimer: ReturnType<typeof setTimeout> | undefined;
@@ -301,7 +329,7 @@ export async function activate(
     if (indexTimer) {
       clearTimeout(indexTimer);
     }
-    indexTimer = setTimeout(() => buildXcfIndex(xcfIndex), INDEX_DEBOUNCE_MS);
+    indexTimer = setTimeout(() => buildXcafIndex(xcafIndex), INDEX_DEBOUNCE_MS);
   };
   context.subscriptions.push({
     dispose: () => {
@@ -315,19 +343,19 @@ export async function activate(
   const { saveWatcher, deleteWatcher } = setupFileWatchers(scheduleIndexRefresh);
 
   // 6. Register providers and status bar
-  const { treeProvider, diagnosticProvider, commandProvider, treeView } = registerProviders(cli, xcfIndex, context);
+  const { treeProvider, diagnosticProvider, commandProvider, treeView } = registerProviders(cli, xcafIndex, context);
   const statusBar = new StatusBarProvider();
   initStatusBar(cli, workspaceFolderPath || '', statusBar);
 
   // 6b. Register CodeLens and Definition providers for .xcaf files
   const codeLensProvider = vscode.languages.registerCodeLensProvider(
     { scheme: 'file', pattern: '**/*.xcaf' },
-    new XcfCodeLensProvider(),
+    new XcafCodeLensProvider(),
   );
 
   const definitionProvider = vscode.languages.registerDefinitionProvider(
     { scheme: 'file', pattern: '**/*.xcaf' },
-    new XcfDefinitionProvider(xcfIndex),
+    new XcafDefinitionProvider(xcafIndex),
   );
 
   // 7. Initialize webview data source

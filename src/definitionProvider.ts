@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { XcfIndex } from './xcfIndex';
+import { XcafIndex } from './xcafIndex';
 
 export interface ReferenceContext {
   refKind: string; // singular: "skill", "rule", "agent"
@@ -10,7 +10,7 @@ export interface DefinitionResult {
   line: number;
 }
 
-// Characters that are valid inside an xcf resource name
+// Characters that are valid inside an xcaf resource name
 const NAME_CHARS = /[a-zA-Z0-9_-]/;
 
 /**
@@ -118,7 +118,7 @@ export function detectReferenceContext(
  * falls back to name-only lookup.
  */
 export function resolveDefinition(
-  index: XcfIndex,
+  index: XcafIndex,
   lines: string[],
   lineNumber: number,
   character: number,
@@ -152,12 +152,12 @@ export function resolveDefinition(
 }
 
 /**
- * XcfDefinitionProvider implements go-to-definition for .xcaf files.
+ * XcafDefinitionProvider implements go-to-definition for .xcaf files.
  * Ctrl+click / F12 on a resource name (inside skills:, rules:, agents:
  * arrays) jumps to the corresponding .xcaf file.
  */
-export class XcfDefinitionProvider implements vscode.DefinitionProvider {
-  constructor(private xcfIndex: XcfIndex) {}
+export class XcafDefinitionProvider implements vscode.DefinitionProvider {
+  constructor(private xcafIndex: XcafIndex) {}
 
   provideDefinition(
     document: vscode.TextDocument,
@@ -169,7 +169,7 @@ export class XcfDefinitionProvider implements vscode.DefinitionProvider {
     }
 
     const result = resolveDefinition(
-      this.xcfIndex,
+      this.xcafIndex,
       lines,
       position.line,
       position.character,

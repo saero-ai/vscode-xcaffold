@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { XcaffoldCli } from './xcaffoldCli';
-import { XcfIndex } from './xcfIndex';
+import { XcafIndex } from './xcafIndex';
 import * as path from 'path';
 
 export interface ResourceInfo {
@@ -41,16 +41,16 @@ export class ResourceTreeItem extends vscode.TreeItem {
     public readonly kind: string,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState,
     public readonly description?: string,
-    xcfIndex?: XcfIndex,
+    xcafIndex?: XcafIndex,
   ) {
     super(label, collapsibleState);
     this.tooltip = this.description || `${this.kind}: ${this.label}`;
 
     if (collapsibleState === vscode.TreeItemCollapsibleState.None) {
       this.contextValue = 'resource-item';
-      // Resolve file URI from xcfIndex for click-to-open
-      if (xcfIndex) {
-        const entry = xcfIndex.resolve(this.kind, this.label);
+      // Resolve file URI from xcafIndex for click-to-open
+      if (xcafIndex) {
+        const entry = xcafIndex.resolve(this.kind, this.label);
         if (entry) {
           this.command = {
             command: 'vscode.open',
@@ -71,7 +71,7 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
 
   constructor(
     private cli: XcaffoldCli,
-    private xcfIndex?: XcfIndex,
+    private xcafIndex?: XcafIndex,
   ) {}
 
   refresh(): void {
@@ -117,7 +117,7 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
           element.kind,
           vscode.TreeItemCollapsibleState.None,
           res.description,
-          this.xcfIndex,
+          this.xcafIndex,
         ));
       }
     } catch (err: any) {

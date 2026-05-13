@@ -21,17 +21,39 @@
     "Linters"
   ],
   "activationEvents": [
-    "onLanguage:yaml",
+    "onLanguage:xcaf",
     "workspaceContains:**/*.xcaf"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "languages": [
       {
-        "id": "yaml",
+        "id": "xcaf",
         "extensions": [
           ".xcaf"
-        ]
+        ],
+        "aliases": [
+          "xcaffold",
+          "xcaf"
+        ],
+        "icon": {
+          "light": "./icons/xcaf-light.svg",
+          "dark": "./icons/xcaf-dark.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "xcaf",
+        "scopeName": "source.xcaf",
+        "path": "./syntaxes/xcaf.tmLanguage.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "xcaffold-icons",
+        "label": "xcaffold Icons",
+        "path": "./fileicons/xcaffold-icon-theme.json"
       }
     ],
     "yaml.schemas": {
@@ -148,7 +170,7 @@
     },
     "snippets": [
       {
-        "language": "yaml",
+        "language": "xcaf",
         "path": "./snippets/xcaf.json"
       }
     ],
