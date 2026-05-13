@@ -129,7 +129,7 @@ suite('xcafSchema', () => {
       assert.deepStrictEqual(schema.fields, fallback);
     });
 
-    test('getSchema returns empty fields for kind without fallback when CLI fails', async () => {
+    test('getSchema returns fallback fields for all known kinds when CLI fails', async () => {
       const failRunner = async () => {
         throw new Error('CLI not found');
       };
@@ -137,9 +137,11 @@ suite('xcafSchema', () => {
       const cache = new XcafSchemaCache(failRunner);
       await cache.loadAll('/workspace');
 
-      const schema = cache.getSchema('workflow');
-      assert.ok(schema);
-      assert.strictEqual(schema.fields.length, 0);
+      for (const kind of KNOWN_KINDS) {
+        const schema = cache.getSchema(kind);
+        assert.ok(schema, `${kind} should be cached`);
+        assert.ok(schema.fields.length > 0, `${kind} should have fallback fields`);
+      }
     });
 
     test('getSchema returns undefined for unknown kind', async () => {

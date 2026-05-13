@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { XcaffoldCli } from './xcaffoldCli';
 
-const diagnosticCollection = vscode.languages.createDiagnosticCollection('xcaffold');
+export const diagnosticCollection = vscode.languages.createDiagnosticCollection('xcaffold');
 
 /**
  * parseValidateOutput converts xcaffold validate stderr into VS Code Diagnostic objects.

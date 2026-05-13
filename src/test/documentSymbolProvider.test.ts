@@ -36,14 +36,19 @@ suite('DocumentSymbolProvider', () => {
       const children = resource.children!;
       assert.ok(children.length > 0, 'resource must have children');
 
-      // Properties: kind, version, name, description, tools
+      // Properties: kind, version, name, description, tools — with values as detail
       const properties = children.filter((c) => c.kind === 'property');
       assert.strictEqual(properties.length, 5);
       assert.strictEqual(properties[0].name, 'kind');
+      assert.strictEqual(properties[0].detail, 'agent');
       assert.strictEqual(properties[1].name, 'version');
+      assert.strictEqual(properties[1].detail, '1.0');
       assert.strictEqual(properties[2].name, 'name');
+      assert.strictEqual(properties[2].detail, 'my-agent');
       assert.strictEqual(properties[3].name, 'description');
+      assert.strictEqual(properties[3].detail, 'Does stuff');
       assert.strictEqual(properties[4].name, 'tools');
+      assert.strictEqual(properties[4].detail, '[Read, Write]');
 
       // Body sections: Role, Scope
       const sections = children.filter((c) => c.kind === 'section');
@@ -72,7 +77,11 @@ suite('DocumentSymbolProvider', () => {
       const properties = resource.children!.filter((c) => c.kind === 'property');
       assert.strictEqual(properties.length, 4);
       assert.strictEqual(properties[0].name, 'kind');
+      assert.strictEqual(properties[0].detail, 'project');
+      assert.strictEqual(properties[1].detail, '1.0');
+      assert.strictEqual(properties[2].detail, 'my-project');
       assert.strictEqual(properties[3].name, 'agents');
+      assert.strictEqual(properties[3].detail, '[reviewer]');
 
       // No body sections in pure YAML
       const sections = resource.children!.filter((c) => c.kind === 'section');

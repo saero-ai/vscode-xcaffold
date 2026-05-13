@@ -55,4 +55,25 @@ suite('Extension wiring', () => {
     assert.ok(typeof ext.activate === 'function');
     assert.ok(typeof ext.deactivate === 'function');
   });
+
+  test('extension.ts imports all 6 language providers', () => {
+    const extPath = path.resolve(__dirname, '../extension.ts');
+    const source = fs.readFileSync(extPath, 'utf-8');
+
+    const expectedImports = [
+      'xcafSchema',
+      'completionProvider',
+      'hoverProvider',
+      'documentSymbolProvider',
+      'referenceProvider',
+      'renameProvider',
+    ];
+
+    for (const mod of expectedImports) {
+      assert.ok(
+        source.includes(mod),
+        `extension.ts must import from '${mod}'`,
+      );
+    }
+  });
 });

@@ -50,14 +50,15 @@ function extractYamlProperties(
   endLine: number,
 ): DocumentSymbolInfo[] {
   const props: DocumentSymbolInfo[] = [];
-  const keyRe = /^([a-zA-Z][\w-]*):/;
+  const keyRe = /^([a-zA-Z][\w-]*):\s*(.*)/;
 
   for (let i = startLine; i < endLine; i++) {
     const match = keyRe.exec(lines[i]);
     if (match) {
+      const rawValue = (match[2] || '').replace(/^["']|["']$/g, '').trim();
       props.push({
         name: match[1],
-        detail: '',
+        detail: rawValue,
         kind: 'property',
         range: { startLine: i, endLine: i },
       });

@@ -32,7 +32,7 @@ export const KNOWN_KINDS: readonly string[] = [
   'blueprint',
 ];
 
-/** Hardcoded fallback schemas for the three most common kinds. */
+/** Hardcoded fallback schemas for all known kinds. */
 export const FALLBACK_SCHEMAS: ReadonlyMap<string, SchemaField[]> = new Map([
   [
     'agent',
@@ -65,6 +65,85 @@ export const FALLBACK_SCHEMAS: ReadonlyMap<string, SchemaField[]> = new Map([
       { name: 'description', type: 'string', required: false, group: 'identity', description: 'Short description' },
       { name: 'activation', type: 'string', required: false, group: 'behavior', description: 'When this rule applies' },
       { name: 'always-apply', type: 'bool', required: false, group: 'behavior', description: 'Apply to every conversation' },
+    ],
+  ],
+  [
+    'workflow',
+    [
+      { name: 'kind', type: 'string', required: true, group: 'identity', description: 'Resource kind' },
+      { name: 'version', type: 'string', required: true, group: 'identity', description: 'Schema version' },
+      { name: 'name', type: 'string', required: true, group: 'identity', description: 'Workflow name' },
+      { name: 'description', type: 'string', required: false, group: 'identity', description: 'Short description' },
+      { name: 'targets', type: '[]string', required: false, group: 'behavior', description: 'Target providers' },
+    ],
+  ],
+  [
+    'mcp',
+    [
+      { name: 'kind', type: 'string', required: true, group: 'identity', description: 'Resource kind' },
+      { name: 'version', type: 'string', required: true, group: 'identity', description: 'Schema version' },
+      { name: 'name', type: 'string', required: true, group: 'identity', description: 'MCP server name' },
+      { name: 'description', type: 'string', required: false, group: 'identity', description: 'Short description' },
+      { name: 'command', type: 'string', required: false, group: 'behavior', description: 'Server command' },
+      { name: 'args', type: '[]string', required: false, group: 'behavior', description: 'Command arguments' },
+    ],
+  ],
+  [
+    'project',
+    [
+      { name: 'kind', type: 'string', required: true, group: 'identity', description: 'Resource kind' },
+      { name: 'version', type: 'string', required: true, group: 'identity', description: 'Schema version' },
+      { name: 'name', type: 'string', required: true, group: 'identity', description: 'Project name' },
+      { name: 'description', type: 'string', required: false, group: 'identity', description: 'Short description' },
+      { name: 'targets', type: '[]string', required: false, group: 'behavior', description: 'Target providers' },
+    ],
+  ],
+  [
+    'settings',
+    [
+      { name: 'kind', type: 'string', required: true, group: 'identity', description: 'Resource kind' },
+      { name: 'version', type: 'string', required: true, group: 'identity', description: 'Schema version' },
+      { name: 'name', type: 'string', required: true, group: 'identity', description: 'Settings name' },
+      { name: 'description', type: 'string', required: false, group: 'identity', description: 'Short description' },
+      { name: 'permissions', type: 'map', required: false, group: 'behavior', description: 'Permission settings' },
+    ],
+  ],
+  [
+    'hooks',
+    [
+      { name: 'kind', type: 'string', required: true, group: 'identity', description: 'Resource kind' },
+      { name: 'version', type: 'string', required: true, group: 'identity', description: 'Schema version' },
+      { name: 'name', type: 'string', required: true, group: 'identity', description: 'Hooks name' },
+      { name: 'description', type: 'string', required: false, group: 'identity', description: 'Short description' },
+      { name: 'events', type: '[]string', required: false, group: 'behavior', description: 'Hook event triggers' },
+    ],
+  ],
+  [
+    'global',
+    [
+      { name: 'kind', type: 'string', required: true, group: 'identity', description: 'Resource kind' },
+      { name: 'version', type: 'string', required: true, group: 'identity', description: 'Schema version' },
+    ],
+  ],
+  [
+    'policy',
+    [
+      { name: 'kind', type: 'string', required: true, group: 'identity', description: 'Resource kind' },
+      { name: 'version', type: 'string', required: true, group: 'identity', description: 'Schema version' },
+      { name: 'name', type: 'string', required: true, group: 'identity', description: 'Policy name' },
+      { name: 'description', type: 'string', required: false, group: 'identity', description: 'Short description' },
+      { name: 'assertions', type: '[]string', required: false, group: 'behavior', description: 'Policy assertions' },
+    ],
+  ],
+  [
+    'blueprint',
+    [
+      { name: 'kind', type: 'string', required: true, group: 'identity', description: 'Resource kind' },
+      { name: 'version', type: 'string', required: true, group: 'identity', description: 'Schema version' },
+      { name: 'name', type: 'string', required: true, group: 'identity', description: 'Blueprint name' },
+      { name: 'description', type: 'string', required: false, group: 'identity', description: 'Short description' },
+      { name: 'includes', type: '[]string', required: false, group: 'behavior', description: 'Included resources' },
+      { name: 'targets', type: '[]string', required: false, group: 'behavior', description: 'Target providers' },
     ],
   ],
 ]);
