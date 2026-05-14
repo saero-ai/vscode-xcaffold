@@ -209,8 +209,12 @@ function buildMiniGraphBody(
 
         var container = svg.append('g');
 
+        var links = data.edges.map(function(e) {
+          return { source: e.from, target: e.to, label: e.label };
+        });
+
         var simulation = d3.forceSimulation(data.nodes)
-          .force('link', d3.forceLink(data.edges)
+          .force('link', d3.forceLink(links)
             .id(function(d) { return d.id; })
             .distance(60))
           .force('charge', d3.forceManyBody().strength(-200))
@@ -218,7 +222,7 @@ function buildMiniGraphBody(
 
         var link = container.append('g')
           .selectAll('line')
-          .data(data.edges)
+          .data(links)
           .join('line')
           .attr('class', 'link');
 

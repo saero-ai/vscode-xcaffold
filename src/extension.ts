@@ -5,7 +5,7 @@ import { registerDiagnosticProvider } from './diagnosticProvider';
 import { registerCommandProvider } from './commandProvider';
 import { ObjectExplorerProvider } from './treeViewProvider';
 import { XcaffoldGraphProvider } from './graphProvider';
-import { disposeOutputChannel } from './outputChannel';
+import { disposeOutputChannel, getOutputChannel } from './outputChannel';
 import { checkMinimumVersion } from './versionCheck';
 import { XcafIndex } from './xcafIndex';
 import { XcafProjectModel, FsAdapter } from './xcafProjectModel';
@@ -329,10 +329,19 @@ export async function activate(
   if (xcafRoot) {
     try {
       model = await XcafProjectModel.scan(xcafRoot, vscodeFs);
-    } catch {
+      const kinds = model.getKinds();
+      getOutputChannel().appendLine(`[xcaf-model] Scanned ${xcafRoot}: ${kinds.length} kinds, ${model.allEntries().length} resources`);
+      for (const kg of kinds) {
+        const scoped = kg.resources.filter(r => r.scope);
+        getOutputChannel().appendLine(`[xcaf-model]   ${kg.displayName}: ${kg.resources.length} resources (${scoped.length} scoped)`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      getOutputChannel().appendLine(`[xcaf-model] Scan FAILED: ${msg}`);
       model = new XcafProjectModel([]);
     }
   } else {
+    getOutputChannel().appendLine('[xcaf-model] No workspace folder, skipping scan');
     model = new XcafProjectModel([]);
   }
   xcafIndex.setModel(model);
