@@ -160,21 +160,21 @@
     "views": {
       "xcaffold": [
         {
+          "id": "xcaffoldStatusDash",
+          "name": "Status",
+          "type": "webview"
+        },
+        {
           "id": "xcaffoldExplorer",
           "name": "Resource Explorer"
         },
         {
-          "id": "xcaffoldActions",
-          "name": "Actions"
+          "id": "xcaffoldMiniGraph",
+          "name": "Dependencies",
+          "type": "webview"
         }
       ]
     },
-    "viewsWelcome": [
-      {
-        "view": "xcaffoldActions",
-        "contents": "**Compile**\n[Apply to All Providers](command:xcaffold.apply)\n[Apply to Target](command:xcaffold.apply)\n\n**Inspect**\n[Validate Project](command:xcaffold.validate)\n[Show Resource Graph](command:xcaffold.graph)\n[Status Dashboard](command:xcaffold.statusDash)\n[Fidelity Report](command:xcaffold.fidelity)\n\n**Create**\n[Init Project (Wizard)](command:xcaffold.initWizard)\n[Import from Providers](command:xcaffold.importPicker)\n\n**Reference**\n[Schema Viewer](command:xcaffold.schemaViewer)\n[Preview Changes (Diff)](command:xcaffold.diff)"
-      }
-    ],
     "configuration": {
       "title": "xcaffold",
       "properties": {

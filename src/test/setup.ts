@@ -32,6 +32,9 @@ mock('vscode', {
       dispose: () => {},
     }),
     registerFileDecorationProvider: (provider: any) => ({ dispose: () => {} }),
+    registerWebviewViewProvider: (viewId: string, provider: any) => ({ dispose: () => {} }),
+    showTextDocument: async () => {},
+    onDidChangeActiveTextEditor: (listener: any) => ({ dispose: () => {} }),
     createWebviewPanel: (viewType: string, title: string, showOptions: any, options: any) => ({
       webview: {
         html: '',
@@ -136,6 +139,7 @@ mock('vscode', {
     },
   },
   StatusBarAlignment: { Left: 1, Right: 2 },
+  ViewColumn: { One: 1, Two: 2, Three: 3, Beside: 4 },
   ThemeColor: class {
     constructor(public id: string) {}
   },

@@ -71,8 +71,15 @@ export class XcaffoldCli {
   /**
    * run executes the xcaffold binary with the given arguments.
    * Logs output to the xcaffold output channel.
+   *
+   * @param onStdoutData — optional callback invoked with each stdout
+   *   chunk as it arrives. Useful for streaming progress updates.
    */
-  run(args: string[], cwd: string): Promise<CliResult> {
+  run(
+    args: string[],
+    cwd: string,
+    onStdoutData?: (data: string) => void,
+  ): Promise<CliResult> {
     return new Promise((resolve, reject) => {
       const ch = getOutputChannel();
       ch.appendLine(`> ${this.resolvedPath} ${args.join(' ')}`);
@@ -85,6 +92,7 @@ export class XcaffoldCli {
         const s = d.toString();
         stdout += s;
         ch.append(s);
+        onStdoutData?.(s);
       });
       proc.stderr.on('data', (d: Buffer) => {
         const s = d.toString();

@@ -76,4 +76,24 @@ suite('Extension wiring', () => {
       );
     }
   });
+
+  test('sidebar has exactly 3 views: StatusDash, Explorer, MiniGraph', () => {
+    const views = pkg.contributes.views.xcaffold;
+    assert.ok(Array.isArray(views), 'xcaffold views must be an array');
+    assert.strictEqual(views.length, 3, 'sidebar must have exactly 3 views');
+
+    const ids = views.map((v: { id: string }) => v.id);
+    assert.ok(ids.includes('xcaffoldStatusDash'), 'must include xcaffoldStatusDash');
+    assert.ok(ids.includes('xcaffoldExplorer'), 'must include xcaffoldExplorer');
+    assert.ok(ids.includes('xcaffoldMiniGraph'), 'must include xcaffoldMiniGraph');
+    assert.ok(!ids.includes('xcaffoldActions'), 'must not include xcaffoldActions');
+  });
+
+  test('package.json does not have viewsWelcome', () => {
+    assert.strictEqual(
+      pkg.contributes.viewsWelcome,
+      undefined,
+      'viewsWelcome must be removed',
+    );
+  });
 });

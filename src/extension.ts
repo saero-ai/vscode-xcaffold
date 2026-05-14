@@ -7,6 +7,7 @@ import { XcaffoldGraphProvider } from './graphProvider';
 import { disposeOutputChannel } from './outputChannel';
 import { checkMinimumVersion } from './versionCheck';
 import { XcafIndex, parseFrontmatter } from './xcafIndex';
+import type { DataSource } from './webview/dataSource';
 import { StatusBarProvider } from './statusBarProvider';
 import { runInitWizard } from './initWizardProvider';
 import { runImportPicker } from './importPickerProvider';
@@ -28,6 +29,8 @@ import { XcafSemanticTokenProvider, xcafSemanticLegend } from './semanticTokenPr
 import { diagnosticCollection } from './diagnosticProvider';
 import { runNewResourceWizard } from './newResourceProvider';
 import { XcafCodeActionProvider } from './codeActionProvider';
+import { StatusDashViewProvider } from './statusDashViewProvider';
+import { MiniGraphProvider } from './miniGraphProvider';
 
 /** Debounce timeout for xcafIndex refresh (ms). */
 const INDEX_DEBOUNCE_MS = 500;
@@ -145,20 +148,14 @@ function registerProviders(
   cli: XcaffoldCli,
   xcafIndex: XcafIndex,
   context: vscode.ExtensionContext
-): { treeProvider: XcaffoldTreeProvider; diagnosticProvider: vscode.Disposable; commandProvider: vscode.Disposable; treeView: vscode.Disposable; actionsView: vscode.Disposable } {
+): { treeProvider: XcaffoldTreeProvider; diagnosticProvider: vscode.Disposable; commandProvider: vscode.Disposable; treeView: vscode.Disposable } {
   const diagnosticProvider = registerDiagnosticProvider(cli);
   const commandProvider = registerCommandProvider(cli);
 
   const treeProvider = new XcaffoldTreeProvider(cli, xcafIndex);
   const treeView = vscode.window.registerTreeDataProvider('xcaffoldExplorer', treeProvider);
 
-  // Empty provider for Actions panel — content comes from viewsWelcome in package.json
-  const actionsView = vscode.window.registerTreeDataProvider('xcaffoldActions', {
-    getTreeItem: (el: vscode.TreeItem) => el,
-    getChildren: () => [],
-  });
-
-  return { treeProvider, diagnosticProvider, commandProvider, treeView, actionsView };
+  return { treeProvider, diagnosticProvider, commandProvider, treeView };
 }
 
 /**
@@ -171,7 +168,8 @@ function registerCommands(
   scheduleIndexRefresh: () => void,
   workspaceFolderPath: string | undefined,
   statusBar: StatusBarProvider,
-  dataSource: CliDataSource
+  dataSource: DataSource,
+  xcafIndex: XcafIndex,
 ): { refreshCommand: vscode.Disposable; graphCommand: vscode.Disposable; initWizardCommand: vscode.Disposable; importPickerCommand: vscode.Disposable; diffCommand: vscode.Disposable; fidelityCommand: vscode.Disposable; statusDashCommand: vscode.Disposable; schemaViewerCommand: vscode.Disposable } {
   const refreshCommand = vscode.commands.registerCommand('xcaffold.refreshExplorer', () => {
     treeProvider.refresh();
@@ -189,7 +187,7 @@ function registerCommands(
   const graphCommand = vscode.commands.registerCommand('xcaffold.graph', () => {
     const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (wsFolder) {
-      XcaffoldGraphProvider.show(cli, wsFolder, context.extensionUri);
+      XcaffoldGraphProvider.show(dataSource, wsFolder, context.extensionUri, xcafIndex);
     }
   });
 
@@ -433,8 +431,53 @@ export async function activate(
     (args, cwd) => cli.run(args, cwd),
   );
 
+  // 7b. Register sidebar status dashboard (WebviewViewProvider)
+  const statusDashViewProvider = workspaceFolderPath
+    ? new StatusDashViewProvider(context.extensionUri, dataSource, workspaceFolderPath)
+    : undefined;
+  if (statusDashViewProvider) {
+    const statusDashViewRegistration = vscode.window.registerWebviewViewProvider(
+      'xcaffoldStatusDash',
+      statusDashViewProvider,
+    );
+    context.subscriptions.push(statusDashViewRegistration);
+    context.subscriptions.push(statusDashViewProvider);
+  }
+
+  // 7b-ii. Register sidebar mini-graph (WebviewViewProvider)
+  const miniGraphProvider = workspaceFolderPath
+    ? new MiniGraphProvider(context.extensionUri, dataSource, workspaceFolderPath, xcafIndex)
+    : undefined;
+  if (miniGraphProvider) {
+    const miniGraphRegistration = vscode.window.registerWebviewViewProvider(
+      'xcaffoldMiniGraph',
+      miniGraphProvider,
+    );
+    context.subscriptions.push(miniGraphRegistration);
+    context.subscriptions.push(miniGraphProvider);
+  }
+
+  // 7b-iii. Register refreshDashboard command for post-apply refresh
+  const refreshDashboardCommand = vscode.commands.registerCommand(
+    'xcaffold.refreshDashboard',
+    () => {
+      statusDashViewProvider?.refresh();
+    },
+  );
+  context.subscriptions.push(refreshDashboardCommand);
+
+  // 7c. Wire .xcaf save watcher to sidebar status refresh (2s debounce)
+  if (statusDashViewProvider) {
+    const sidebarSaveWatcher = vscode.workspace.onDidSaveTextDocument((doc) => {
+      if (doc.fileName.endsWith('.xcaf')) {
+        statusDashViewProvider.scheduleRefresh();
+      }
+    });
+    context.subscriptions.push(sidebarSaveWatcher);
+  }
+
   // 8. Register custom commands
-  const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, fidelityCommand, statusDashCommand, schemaViewerCommand } = registerCommands(context, cli, treeProvider, scheduleIndexRefresh, workspaceFolderPath, statusBar, dataSource);
+  const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, fidelityCommand, statusDashCommand, schemaViewerCommand } = registerCommands(context, cli, treeProvider, scheduleIndexRefresh, workspaceFolderPath, statusBar, dataSource, xcafIndex);
 
   // 8b. Register New Resource wizard (replaces the stub in commandProvider)
   const newResourceCommand = vscode.commands.registerCommand(
