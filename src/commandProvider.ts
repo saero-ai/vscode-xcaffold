@@ -2,10 +2,54 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { XcaffoldCli } from './xcaffoldCli';
 import { parseValidateOutput } from './diagnosticProvider';
+import { getOutputChannel } from './outputChannel';
 
 export interface CommandDef {
   id: string;
   args: string[];
+}
+
+/**
+ * Result of parsing a single apply completion line.
+ */
+export interface ApplyProgress {
+  provider: string;
+  fileCount: number;
+}
+
+/**
+ * parseApplyLine extracts provider name and file count from a single
+ * line of `xcaffold apply` output.
+ *
+ * Matches lines like:
+ *   "  ok  Apply complete. 14 files written to .claude/"
+ * Returns { provider: 'claude', fileCount: 14 } or null if no match.
+ */
+export function parseApplyLine(line: string): ApplyProgress | null {
+  const re = /Apply complete\.\s+(\d+)\s+files?\s+written\s+to\s+\.([^/]+)\//i;
+  const m = re.exec(line);
+  if (!m) {
+    return null;
+  }
+  return {
+    provider: m[2],
+    fileCount: parseInt(m[1], 10),
+  };
+}
+
+/**
+ * parseApplyOutput parses complete apply output and extracts all
+ * provider completion results.
+ */
+export function parseApplyOutput(stdout: string): ApplyProgress[] {
+  const results: ApplyProgress[] = [];
+  for (const line of stdout.split('\n')) {
+    const progress = parseApplyLine(line);
+    if (progress) {
+      results.push(progress);
+    }
+  }
+  return results;
 }
 
 /**
@@ -109,7 +153,7 @@ const GENERIC_COMMANDS: CommandDef[] = XCAFFOLD_COMMANDS.filter(
 export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
   const disposables: vscode.Disposable[] = [];
 
-  // Apply with target picker
+  // Apply with target picker and live progress
   const applyDisposable = vscode.commands.registerCommand(
     'xcaffold.apply',
     async () => {
@@ -134,19 +178,67 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: `xcaffold: Applying to ${selection}...`,
+          title: 'Compiling xcaffold project...',
           cancellable: false,
         },
-        async () => {
+        async (progress) => {
+          const completed: ApplyProgress[] = [];
+          let lineBuffer = '';
+
           try {
-            await cli.run(args, workspaceFolder);
-            vscode.window.showInformationMessage(
-              `xcaffold: apply completed for ${selection}.`
+            await cli.run(args, workspaceFolder, (data) => {
+              lineBuffer += data;
+              const lines = lineBuffer.split('\n');
+              // Keep the last incomplete line in the buffer
+              lineBuffer = lines.pop() ?? '';
+
+              for (const line of lines) {
+                const result = parseApplyLine(line);
+                if (result) {
+                  completed.push(result);
+                  progress.report({
+                    message: `${result.provider}: ${result.fileCount} files`,
+                  });
+                }
+              }
+            });
+
+            // Process any remaining buffered line
+            if (lineBuffer.trim()) {
+              const result = parseApplyLine(lineBuffer);
+              if (result) {
+                completed.push(result);
+              }
+            }
+
+            const totalFiles = completed.reduce(
+              (sum, p) => sum + p.fileCount,
+              0,
             );
-          } catch (err: any) {
-            vscode.window.showErrorMessage(`xcaffold error: ${err.message}`);
+            const summary =
+              completed.length > 0
+                ? `${totalFiles} files written across ${completed.length} provider${completed.length === 1 ? '' : 's'}`
+                : `apply completed for ${selection}`;
+
+            vscode.window.showInformationMessage(
+              `xcaffold: ${summary}.`,
+            );
+          } catch (err: unknown) {
+            const message =
+              err instanceof Error ? err.message : String(err);
+            const action = await vscode.window.showErrorMessage(
+              `xcaffold error: ${message}`,
+              'Show Output',
+            );
+            if (action === 'Show Output') {
+              getOutputChannel().show();
+            }
           }
-        }
+
+          // Refresh dashboard and file decorations after apply
+          vscode.commands.executeCommand('xcaffold.refreshExplorer');
+          vscode.commands.executeCommand('xcaffold.refreshDashboard');
+        },
       );
     }
   );

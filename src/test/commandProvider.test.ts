@@ -5,6 +5,8 @@ import {
   XCAFFOLD_COMMANDS,
   PROVIDER_TARGETS,
   buildApplyArgs,
+  parseApplyLine,
+  parseApplyOutput,
 } from '../commandProvider';
 
 suite('CommandProvider', () => {
@@ -135,5 +137,86 @@ suite('Tree context menu commands', () => {
       groups.includes('xcaffold@9'),
       'Delete should have high group number',
     );
+  });
+});
+
+suite('parseApplyLine', () => {
+  test('extracts provider and file count from ok line', () => {
+    const line = '  ok  Apply complete. 14 files written to .claude/';
+    const result = parseApplyLine(line);
+    assert.deepStrictEqual(result, { provider: 'claude', fileCount: 14 });
+  });
+
+  test('extracts provider from cursor output', () => {
+    const line = '  ok  Apply complete. 8 files written to .cursor/';
+    const result = parseApplyLine(line);
+    assert.deepStrictEqual(result, { provider: 'cursor', fileCount: 8 });
+  });
+
+  test('extracts provider from gemini output', () => {
+    const line = '  ok  Apply complete. 3 files written to .gemini/';
+    const result = parseApplyLine(line);
+    assert.deepStrictEqual(result, { provider: 'gemini', fileCount: 3 });
+  });
+
+  test('handles single file written', () => {
+    const line = '  ok  Apply complete. 1 file written to .copilot/';
+    const result = parseApplyLine(line);
+    assert.deepStrictEqual(result, { provider: 'copilot', fileCount: 1 });
+  });
+
+  test('handles antigravity provider', () => {
+    const line = '  ok  Apply complete. 5 files written to .antigravity/';
+    const result = parseApplyLine(line);
+    assert.deepStrictEqual(result, { provider: 'antigravity', fileCount: 5 });
+  });
+
+  test('returns null for non-matching line', () => {
+    const line = 'xcaffold-vscode  .  claude  .  applied just now';
+    assert.strictEqual(parseApplyLine(line), null);
+  });
+
+  test('returns null for empty string', () => {
+    assert.strictEqual(parseApplyLine(''), null);
+  });
+
+  test('returns null for header line', () => {
+    assert.strictEqual(parseApplyLine('  PROVIDER  FILES  STATUS'), null);
+  });
+});
+
+suite('parseApplyOutput', () => {
+  test('parses multi-provider output', () => {
+    const stdout = [
+      'xcaffold-vscode  .  claude  .  applied just now',
+      '',
+      '  ok  Apply complete. 14 files written to .claude/',
+      '',
+      'xcaffold-vscode  .  cursor  .  applied just now',
+      '',
+      '  ok  Apply complete. 8 files written to .cursor/',
+    ].join('\n');
+
+    const results = parseApplyOutput(stdout);
+    assert.strictEqual(results.length, 2);
+    assert.deepStrictEqual(results[0], { provider: 'claude', fileCount: 14 });
+    assert.deepStrictEqual(results[1], { provider: 'cursor', fileCount: 8 });
+  });
+
+  test('returns empty array for output with no completions', () => {
+    const stdout = 'xcaffold-vscode  .  claude  .  applied just now\n';
+    const results = parseApplyOutput(stdout);
+    assert.strictEqual(results.length, 0);
+  });
+
+  test('returns empty array for empty string', () => {
+    assert.deepStrictEqual(parseApplyOutput(''), []);
+  });
+
+  test('parses single-provider output', () => {
+    const stdout = '  ok  Apply complete. 14 files written to .claude/\n';
+    const results = parseApplyOutput(stdout);
+    assert.strictEqual(results.length, 1);
+    assert.deepStrictEqual(results[0], { provider: 'claude', fileCount: 14 });
   });
 });

@@ -449,6 +449,15 @@ export async function activate(
     context.subscriptions.push(statusDashViewProvider);
   }
 
+  // 7b-ii. Register refreshDashboard command for post-apply refresh
+  const refreshDashboardCommand = vscode.commands.registerCommand(
+    'xcaffold.refreshDashboard',
+    () => {
+      statusDashViewProvider?.refresh();
+    },
+  );
+  context.subscriptions.push(refreshDashboardCommand);
+
   // 7c. Wire .xcaf save watcher to sidebar status refresh (2s debounce)
   if (statusDashViewProvider) {
     const sidebarSaveWatcher = vscode.workspace.onDidSaveTextDocument((doc) => {
