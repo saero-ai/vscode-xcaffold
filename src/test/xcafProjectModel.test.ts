@@ -407,6 +407,77 @@ suite('xcafProjectModel', () => {
       assert.strictEqual(memoryGroup.displayName, 'MEMORIES');
     });
 
+    test('scope directory: scoped rule has scope field set, flat rule has no scope', async () => {
+      const xcafRoot = '/workspace/xcaf';
+      const fs = makeMockFs({
+        '/workspace/xcaf': [['rules', DIR]],
+        '/workspace/xcaf/rules': [
+          ['my-rule', DIR],    // flat rule — contains rule.xcaf directly
+          ['cli', DIR],        // scope directory — contains subdirs with rule.xcaf
+        ],
+        '/workspace/xcaf/rules/my-rule': [
+          ['rule.xcaf', FILE],
+        ],
+        '/workspace/xcaf/rules/cli': [
+          // No rule.xcaf here — this is a scope directory
+          ['go-code-quality', DIR],
+        ],
+        '/workspace/xcaf/rules/cli/go-code-quality': [
+          ['rule.xcaf', FILE],
+        ],
+      });
+
+      const groups = await scanXcafDirectory(xcafRoot, fs);
+      const ruleGroup = groups.find(g => g.kind === 'rule')!;
+      assert.ok(ruleGroup, 'rule group should exist');
+      assert.strictEqual(ruleGroup.resources.length, 2);
+
+      const flatRule = ruleGroup.resources.find(r => r.name === 'my-rule');
+      assert.ok(flatRule, 'flat rule should exist');
+      assert.strictEqual(flatRule.scope, undefined);
+
+      const scopedRule = ruleGroup.resources.find(r => r.name === 'go-code-quality');
+      assert.ok(scopedRule, 'scoped rule should exist');
+      assert.strictEqual(scopedRule.scope, 'cli');
+      assert.ok(
+        scopedRule.baseManifest.endsWith(path.join('go-code-quality', 'rule.xcaf')),
+        `Expected baseManifest to end with go-code-quality/rule.xcaf, got: ${scopedRule.baseManifest}`,
+      );
+    });
+
+    test('scope directory with multiple scopes produces resources in each scope', async () => {
+      const xcafRoot = '/workspace/xcaf';
+      const fs = makeMockFs({
+        '/workspace/xcaf': [['rules', DIR]],
+        '/workspace/xcaf/rules': [
+          ['cli', DIR],
+          ['platform', DIR],
+        ],
+        '/workspace/xcaf/rules/cli': [
+          ['go-code-quality', DIR],
+          ['open-source-standards', DIR],
+        ],
+        '/workspace/xcaf/rules/cli/go-code-quality': [['rule.xcaf', FILE]],
+        '/workspace/xcaf/rules/cli/open-source-standards': [['rule.xcaf', FILE]],
+        '/workspace/xcaf/rules/platform': [
+          ['api-conventions', DIR],
+        ],
+        '/workspace/xcaf/rules/platform/api-conventions': [['rule.xcaf', FILE]],
+      });
+
+      const groups = await scanXcafDirectory(xcafRoot, fs);
+      const ruleGroup = groups.find(g => g.kind === 'rule')!;
+      assert.ok(ruleGroup, 'rule group should exist');
+      assert.strictEqual(ruleGroup.resources.length, 3);
+
+      const cliRules = ruleGroup.resources.filter(r => r.scope === 'cli');
+      assert.strictEqual(cliRules.length, 2);
+
+      const platformRules = ruleGroup.resources.filter(r => r.scope === 'platform');
+      assert.strictEqual(platformRules.length, 1);
+      assert.strictEqual(platformRules[0].name, 'api-conventions');
+    });
+
     test('only 1-level deep files are read for artifact dirs', async () => {
       const xcafRoot = '/workspace/xcaf';
       const fs = makeMockFs({

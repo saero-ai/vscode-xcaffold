@@ -14,6 +14,7 @@ export interface ArtifactDir {
 export interface XcafResource {
   name: string;
   kind: string;
+  scope?: string;  // e.g., 'cli', 'platform' for scoped resources like rules
   baseManifest: string;
   overrides: OverrideFile[];
   artifactDirs: ArtifactDir[];
@@ -88,6 +89,44 @@ export interface FsAdapter {
 const FILE_TYPE_FILE = 1;
 const FILE_TYPE_DIR = 2;
 
+async function _buildResource(
+  name: string,
+  kind: string,
+  dirPath: string,
+  files: Array<[string, number]>,
+  fs: FsAdapter,
+): Promise<XcafResource> {
+  const baseManifestName = `${kind}.xcaf`;
+  const baseManifest = path.join(dirPath, baseManifestName);
+  const overrides: OverrideFile[] = [];
+  const artifactDirs: ArtifactDir[] = [];
+
+  for (const [fileName, fileType] of files) {
+    if (fileType === FILE_TYPE_FILE) {
+      const provider = parseOverrideFilename(fileName, kind);
+      if (provider !== undefined) {
+        overrides.push({
+          provider,
+          path: path.join(dirPath, fileName),
+        });
+      }
+    } else if (fileType === FILE_TYPE_DIR) {
+      const artifactDirPath = path.join(dirPath, fileName);
+      const artifactEntries = await fs.readDirectory(artifactDirPath);
+      const artifactFiles = artifactEntries
+        .filter(([, type]) => type === FILE_TYPE_FILE)
+        .map(([n]) => n);
+      artifactDirs.push({
+        name: fileName,
+        path: artifactDirPath,
+        files: artifactFiles,
+      });
+    }
+  }
+
+  return { name, kind, baseManifest, overrides, artifactDirs };
+}
+
 export async function scanXcafDirectory(
   xcafRoot: string,
   fs: FsAdapter,
@@ -120,44 +159,27 @@ export async function scanXcafDirectory(
       const hasBaseManifest = resourceFiles.some(
         ([name, type]) => name === baseManifestName && type === FILE_TYPE_FILE,
       );
-      if (!hasBaseManifest) {
-        continue;
-      }
 
-      const baseManifest = path.join(resourceDirPath, baseManifestName);
-      const overrides: OverrideFile[] = [];
-      const artifactDirs: ArtifactDir[] = [];
-
-      for (const [fileName, fileType] of resourceFiles) {
-        if (fileType === FILE_TYPE_FILE) {
-          const provider = parseOverrideFilename(fileName, kind);
-          if (provider !== undefined) {
-            overrides.push({
-              provider,
-              path: path.join(resourceDirPath, fileName),
-            });
+      if (hasBaseManifest) {
+        // Normal (flat) resource
+        const resource = await _buildResource(resourceName, kind, resourceDirPath, resourceFiles, fs);
+        resources.push(resource);
+      } else {
+        // Check if this is a scope directory containing resource subdirectories
+        const scopeSubdirs = resourceFiles.filter(([, type]) => type === FILE_TYPE_DIR);
+        for (const [scopeChildName] of scopeSubdirs) {
+          const scopeChildPath = path.join(resourceDirPath, scopeChildName);
+          const scopeChildFiles = await fs.readDirectory(scopeChildPath);
+          const hasScopeBase = scopeChildFiles.some(
+            ([name, type]) => name === baseManifestName && type === FILE_TYPE_FILE,
+          );
+          if (hasScopeBase) {
+            const resource = await _buildResource(scopeChildName, kind, scopeChildPath, scopeChildFiles, fs);
+            resource.scope = resourceName;
+            resources.push(resource);
           }
-        } else if (fileType === FILE_TYPE_DIR) {
-          const artifactDirPath = path.join(resourceDirPath, fileName);
-          const artifactEntries = await fs.readDirectory(artifactDirPath);
-          const files = artifactEntries
-            .filter(([, type]) => type === FILE_TYPE_FILE)
-            .map(([name]) => name);
-          artifactDirs.push({
-            name: fileName,
-            path: artifactDirPath,
-            files,
-          });
         }
       }
-
-      resources.push({
-        name: resourceName,
-        kind,
-        baseManifest,
-        overrides,
-        artifactDirs,
-      });
     }
 
     resources.sort((a, b) => a.name.localeCompare(b.name));

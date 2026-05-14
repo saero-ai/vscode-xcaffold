@@ -234,16 +234,16 @@ export function parseListOutput(stdout: string): Map<string, ResourceInfo[]> {
 
 export type ExplorerNodeType =
   | 'kind-group'
+  | 'scope-group'
   | 'resource'
-  | 'section'
   | 'property'
   | 'override'
   | 'artifact-dir'
   | 'artifact-file';
 
 export interface KindGroupData { type: 'kind-group'; kind: string; count: number }
+export interface ScopeGroupData { type: 'scope-group'; kind: string; scope: string; count: number }
 export interface ResourceData { type: 'resource'; kind: string; name: string; baseManifest: string; overrideCount: number }
-export interface SectionData { type: 'section'; sectionName: 'Properties' | 'Overrides' | 'Artifacts'; parentKind: string; parentName: string }
 export interface PropertyData { type: 'property'; fieldLabel: string; value: string; fullValue?: string }
 export interface OverrideData { type: 'override'; provider: string; filePath: string }
 export interface ArtifactDirData { type: 'artifact-dir'; dirName: string; dirPath: string; files: string[] }
@@ -251,8 +251,8 @@ export interface ArtifactFileData { type: 'artifact-file'; fileName: string; fil
 
 export type ExplorerNodeData =
   | KindGroupData
+  | ScopeGroupData
   | ResourceData
-  | SectionData
   | PropertyData
   | OverrideData
   | ArtifactDirData
@@ -309,25 +309,16 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
       return this._getRootChildren();
     }
 
-
     if (element.data.type === 'kind-group') {
-      return this._getResourceChildren(element.data);
+      return this._getKindGroupChildren(element.data);
+    }
+
+    if (element.data.type === 'scope-group') {
+      return this._getScopeGroupChildren(element.data);
     }
 
     if (element.data.type === 'resource') {
-      return this._getSectionChildren(element.data);
-    }
-
-    if (element.data.type === 'section' && element.data.sectionName === 'Overrides') {
-      return this._getOverrideChildren(element.data);
-    }
-
-    if (element.data.type === 'section' && element.data.sectionName === 'Properties') {
-      return this._getPropertyChildren(element.data);
-    }
-
-    if (element.data.type === 'section' && element.data.sectionName === 'Artifacts') {
-      return this._getArtifactDirChildren(element.data);
+      return this._getResourceChildren(element.data);
     }
 
     if (element.data.type === 'artifact-dir') {
@@ -394,10 +385,37 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
     }
   }
 
-  private _getResourceChildren(data: KindGroupData): ExplorerNode[] {
+  private _getKindGroupChildren(data: KindGroupData): ExplorerNode[] {
     const resources = this.model.getResources(data.kind);
     if (resources.length > 0) {
-      return resources.map(r => this._makeResourceNode(r));
+      // Group scoped resources into scope-group nodes
+      const scoped = resources.filter(r => r.scope !== undefined);
+      const unscoped = resources.filter(r => r.scope === undefined);
+
+      const children: ExplorerNode[] = [];
+
+      // Scope groups sorted alphabetically
+      const scopeMap = new Map<string, XcafResource[]>();
+      for (const r of scoped) {
+        const list = scopeMap.get(r.scope!) ?? [];
+        list.push(r);
+        scopeMap.set(r.scope!, list);
+      }
+      for (const [scope, scopeResources] of Array.from(scopeMap.entries()).sort((a, b) => a[0].localeCompare(b[0]))) {
+        children.push(new ExplorerNode(
+          `${scope}/ (${scopeResources.length})`,
+          'scope-group',
+          vscode.TreeItemCollapsibleState.Collapsed,
+          { type: 'scope-group', kind: data.kind, scope, count: scopeResources.length },
+        ));
+      }
+
+      // Unscoped resources
+      for (const r of unscoped) {
+        children.push(this._makeResourceNode(r));
+      }
+
+      return children;
     }
     if (this.fallbackData) {
       const cliResources = this.fallbackData.get(data.kind) ?? [];
@@ -409,6 +427,12 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
       ));
     }
     return [];
+  }
+
+  private _getScopeGroupChildren(data: ScopeGroupData): ExplorerNode[] {
+    const resources = this.model.getResources(data.kind)
+      .filter(r => r.scope === data.scope);
+    return resources.map(r => this._makeResourceNode(r));
   }
 
   private _makeResourceNode(r: XcafResource): ExplorerNode {
@@ -426,83 +450,42 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
     return node;
   }
 
-  private _getSectionChildren(data: ResourceData): ExplorerNode[] {
+  private async _getResourceChildren(data: ResourceData): Promise<ExplorerNode[]> {
     const resource = this.model.getResource(data.kind, data.name);
     if (!resource) {
       return [];
     }
 
-    const sections: ExplorerNode[] = [];
+    const children: ExplorerNode[] = [];
 
-    // Properties section always shown
-    sections.push(new ExplorerNode(
-      'Properties',
-      'section',
-      vscode.TreeItemCollapsibleState.Collapsed,
-      { type: 'section', sectionName: 'Properties', parentKind: data.kind, parentName: data.name },
-    ));
-
-    // Overrides only if non-empty
-    if (resource.overrides.length > 0) {
-      sections.push(new ExplorerNode(
-        `Overrides (${resource.overrides.length})`,
-        'section',
-        vscode.TreeItemCollapsibleState.Collapsed,
-        { type: 'section', sectionName: 'Overrides', parentKind: data.kind, parentName: data.name },
-      ));
-    }
-
-    // Artifacts only if non-empty
-    if (resource.artifactDirs.length > 0) {
-      sections.push(new ExplorerNode(
-        'Artifacts',
-        'section',
-        vscode.TreeItemCollapsibleState.Collapsed,
-        { type: 'section', sectionName: 'Artifacts', parentKind: data.kind, parentName: data.name },
-      ));
-    }
-
-    return sections;
-  }
-
-  private async _getPropertyChildren(data: SectionData): Promise<ExplorerNode[]> {
-    const resource = this.model.getResource(data.parentKind, data.parentName);
-    if (!resource) {
-      return [];
-    }
+    // 1. Properties (inline)
     try {
       const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(resource.baseManifest));
       const fields = extractMetadataFields(doc.getText());
       if (fields.length === 0) {
-        return [new ExplorerNode(
+        children.push(new ExplorerNode(
           '(no properties)',
           'property',
           vscode.TreeItemCollapsibleState.None,
           { type: 'property', fieldLabel: 'empty', value: '' },
-        )];
+        ));
+      } else {
+        for (const f of fields) {
+          const node = new ExplorerNode(
+            f.label,
+            'property',
+            vscode.TreeItemCollapsibleState.None,
+            { type: 'property', fieldLabel: f.label, value: f.value, fullValue: f.fullValue },
+          );
+          node.description = f.value;
+          node.tooltip = `${f.label}: ${f.fullValue || f.value}`;
+          children.push(node);
+        }
       }
-      return fields.map(f => {
-        const node = new ExplorerNode(
-          f.label,
-          'property',
-          vscode.TreeItemCollapsibleState.None,
-          { type: 'property', fieldLabel: f.label, value: f.value, fullValue: f.fullValue },
-        );
-        node.description = f.value;
-        node.tooltip = `${f.label}: ${f.fullValue || f.value}`;
-        return node;
-      });
-    } catch {
-      return [];
-    }
-  }
+    } catch { /* ignore read errors */ }
 
-  private _getOverrideChildren(data: SectionData): ExplorerNode[] {
-    const resource = this.model.getResource(data.parentKind, data.parentName);
-    if (!resource) {
-      return [];
-    }
-    return resource.overrides.map(o => {
+    // 2. Overrides (inline)
+    for (const o of resource.overrides) {
       const node = new ExplorerNode(
         o.provider,
         'override',
@@ -511,26 +494,24 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
       );
       node.resourceUri = vscode.Uri.file(o.path);
       node.command = { command: 'vscode.open', title: 'Open', arguments: [vscode.Uri.file(o.path)] };
-      return node;
-    });
-  }
-
-  private _getArtifactDirChildren(data: SectionData): ExplorerNode[] {
-    const resource = this.model.getResource(data.parentKind, data.parentName);
-    if (!resource) {
-      return [];
+      node.description = `${resource.kind}.${o.provider}.xcaf`;
+      children.push(node);
     }
-    return resource.artifactDirs.map(ad => {
+
+    // 3. Artifact directories (inline)
+    for (const ad of resource.artifactDirs) {
       const fileWord = ad.files.length === 1 ? 'file' : 'files';
-      return new ExplorerNode(
+      children.push(new ExplorerNode(
         `${ad.name}/ (${ad.files.length} ${fileWord})`,
         'artifact-dir',
         ad.files.length > 0
           ? vscode.TreeItemCollapsibleState.Collapsed
           : vscode.TreeItemCollapsibleState.None,
         { type: 'artifact-dir', dirName: ad.name, dirPath: ad.path, files: ad.files },
-      );
-    });
+      ));
+    }
+
+    return children;
   }
 
   private _getArtifactFileChildren(data: ArtifactDirData): ExplorerNode[] {
