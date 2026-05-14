@@ -650,19 +650,127 @@ suite('ObjectExplorerProvider', () => {
     );
   });
 
-  test('Properties section returns empty (placeholder for later task)', async () => {
-    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
-    const roots = await provider.getChildren();
-    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
-    const resources = await provider.getChildren(agentsNode);
-    const coderNode = resources.find(r => r.label === 'coder') as ExplorerNode;
-    const sections = await provider.getChildren(coderNode);
+  test('Properties section returns property nodes from manifest', async () => {
+    const vscodeModule = require('vscode');
+    const originalOpen = vscodeModule.workspace.openTextDocument;
+    vscodeModule.workspace.openTextDocument = async (_uri: any) => ({
+      getText: () => [
+        '---',
+        'kind: agent',
+        'name: coder',
+        'description: A coding agent',
+        'model: sonnet',
+        '---',
+      ].join('\n'),
+    });
 
-    const propertiesSection = sections.find(s => s.label === 'Properties') as ExplorerNode;
-    assert.ok(propertiesSection);
+    try {
+      const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+      const roots = await provider.getChildren();
+      const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+      const resources = await provider.getChildren(agentsNode);
+      const coderNode = resources.find(r => r.label === 'coder') as ExplorerNode;
+      const sections = await provider.getChildren(coderNode);
 
-    const props = await provider.getChildren(propertiesSection);
-    assert.strictEqual(props.length, 0);
+      const propertiesSection = sections.find(s => s.label === 'Properties') as ExplorerNode;
+      assert.ok(propertiesSection);
+
+      const props = await provider.getChildren(propertiesSection);
+      assert.ok(props.length > 0, 'should return property nodes');
+
+      const labels = props.map(p => p.label as string);
+      assert.ok(labels.includes('kind'), 'should include kind');
+      assert.ok(labels.includes('description'), 'should include description');
+      assert.ok(labels.includes('model'), 'should include model');
+
+      const descNode = props.find(p => p.label === 'description') as ExplorerNode;
+      assert.ok(descNode);
+      assert.strictEqual(descNode.description, 'A coding agent');
+    } finally {
+      vscodeModule.workspace.openTextDocument = originalOpen;
+    }
+  });
+
+  test('Property nodes have tooltip with full value for long descriptions', async () => {
+    const longDesc = 'B'.repeat(80);
+    const vscodeModule = require('vscode');
+    const originalOpen = vscodeModule.workspace.openTextDocument;
+    vscodeModule.workspace.openTextDocument = async (_uri: any) => ({
+      getText: () => [
+        '---',
+        'kind: agent',
+        `description: ${longDesc}`,
+        '---',
+      ].join('\n'),
+    });
+
+    try {
+      const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+      const roots = await provider.getChildren();
+      const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+      const resources = await provider.getChildren(agentsNode);
+      const coderNode = resources.find(r => r.label === 'coder') as ExplorerNode;
+      const sections = await provider.getChildren(coderNode);
+      const propertiesSection = sections.find(s => s.label === 'Properties') as ExplorerNode;
+      const props = await provider.getChildren(propertiesSection);
+
+      const descNode = props.find(p => p.label === 'description') as ExplorerNode;
+      assert.ok(descNode, 'should have description node');
+      assert.ok((descNode.description as string).endsWith('...'), 'visible value should be truncated');
+      assert.ok(
+        (descNode.tooltip as string).includes(longDesc),
+        'tooltip should contain the full untruncated description',
+      );
+    } finally {
+      vscodeModule.workspace.openTextDocument = originalOpen;
+    }
+  });
+
+  test('Properties section returns empty placeholder node when manifest has no fields', async () => {
+    const vscodeModule = require('vscode');
+    const originalOpen = vscodeModule.workspace.openTextDocument;
+    vscodeModule.workspace.openTextDocument = async (_uri: any) => ({
+      getText: () => '',
+    });
+
+    try {
+      const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+      const roots = await provider.getChildren();
+      const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+      const resources = await provider.getChildren(agentsNode);
+      const coderNode = resources.find(r => r.label === 'coder') as ExplorerNode;
+      const sections = await provider.getChildren(coderNode);
+      const propertiesSection = sections.find(s => s.label === 'Properties') as ExplorerNode;
+      const props = await provider.getChildren(propertiesSection);
+
+      assert.strictEqual(props.length, 1, 'should return one placeholder node');
+      assert.ok((props[0].label as string).includes('no properties'), 'placeholder label should say "no properties"');
+    } finally {
+      vscodeModule.workspace.openTextDocument = originalOpen;
+    }
+  });
+
+  test('Properties section returns empty array when manifest read throws', async () => {
+    const vscodeModule = require('vscode');
+    const originalOpen = vscodeModule.workspace.openTextDocument;
+    vscodeModule.workspace.openTextDocument = async (_uri: any) => {
+      throw new Error('file not found');
+    };
+
+    try {
+      const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+      const roots = await provider.getChildren();
+      const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+      const resources = await provider.getChildren(agentsNode);
+      const coderNode = resources.find(r => r.label === 'coder') as ExplorerNode;
+      const sections = await provider.getChildren(coderNode);
+      const propertiesSection = sections.find(s => s.label === 'Properties') as ExplorerNode;
+      const props = await provider.getChildren(propertiesSection);
+
+      assert.strictEqual(props.length, 0, 'should return empty array on read error');
+    } finally {
+      vscodeModule.workspace.openTextDocument = originalOpen;
+    }
   });
 
   test('Artifacts section returns empty (placeholder for later task)', async () => {

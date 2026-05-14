@@ -312,8 +312,7 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
     }
 
     if (element.data.type === 'section' && element.data.sectionName === 'Properties') {
-      // Task 5 will implement lazy property parsing here
-      return [];
+      return this._getPropertyChildren(element.data);
     }
 
     if (element.data.type === 'section' && element.data.sectionName === 'Artifacts') {
@@ -399,6 +398,38 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
     }
 
     return sections;
+  }
+
+  private async _getPropertyChildren(data: SectionData): Promise<ExplorerNode[]> {
+    const resource = this.model.getResource(data.parentKind, data.parentName);
+    if (!resource) {
+      return [];
+    }
+    try {
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(resource.baseManifest));
+      const fields = extractMetadataFields(doc.getText());
+      if (fields.length === 0) {
+        return [new ExplorerNode(
+          '(no properties)',
+          'property',
+          vscode.TreeItemCollapsibleState.None,
+          { type: 'property', fieldLabel: 'empty', value: '' },
+        )];
+      }
+      return fields.map(f => {
+        const node = new ExplorerNode(
+          f.label,
+          'property',
+          vscode.TreeItemCollapsibleState.None,
+          { type: 'property', fieldLabel: f.label, value: f.value, fullValue: f.fullValue },
+        );
+        node.description = f.value;
+        node.tooltip = `${f.label}: ${f.fullValue || f.value}`;
+        return node;
+      });
+    } catch {
+      return [];
+    }
   }
 
   private _getOverrideChildren(data: SectionData): ExplorerNode[] {
