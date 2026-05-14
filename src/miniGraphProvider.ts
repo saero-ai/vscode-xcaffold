@@ -338,6 +338,35 @@ export class MiniGraphProvider implements vscode.WebviewViewProvider {
     );
   }
 
+  private async fetchNeighborhood(
+    centerNodeId: string,
+  ): Promise<MiniGraphData | null> {
+    const result = await this.dataSource.fetch(
+      ['graph', '--format', 'json'],
+      this.workspaceFolder,
+    );
+
+    let graphData: GraphData;
+    try {
+      const parsed = JSON.parse(result.stdout);
+      graphData = Array.isArray(parsed) ? parsed[0] : parsed;
+    } catch {
+      return null;
+    }
+
+    if (!graphData || !graphData.nodes) {
+      return null;
+    }
+
+    const neighborhood = extractNeighborhood(
+      graphData.nodes,
+      graphData.edges || [],
+      centerNodeId,
+    );
+
+    return neighborhood.nodes.length > 0 ? neighborhood : null;
+  }
+
   private async renderGraph(centerNodeId: string): Promise<void> {
     if (!this._view) {
       return;
@@ -355,32 +384,9 @@ export class MiniGraphProvider implements vscode.WebviewViewProvider {
     );
 
     try {
-      const result = await this.dataSource.fetch(
-        ['graph', '--format', 'json'],
-        this.workspaceFolder,
-      );
+      const neighborhood = await this.fetchNeighborhood(centerNodeId);
 
-      let graphData: GraphData;
-      try {
-        const parsed = JSON.parse(result.stdout);
-        graphData = Array.isArray(parsed) ? parsed[0] : parsed;
-      } catch {
-        this.renderError('Failed to parse graph data.');
-        return;
-      }
-
-      if (!graphData || !graphData.nodes) {
-        this.renderError('No graph data available.');
-        return;
-      }
-
-      const neighborhood = extractNeighborhood(
-        graphData.nodes,
-        graphData.edges || [],
-        centerNodeId,
-      );
-
-      if (neighborhood.nodes.length === 0) {
+      if (!neighborhood) {
         this.renderPlaceholder();
         return;
       }
