@@ -1,8 +1,80 @@
 import * as assert from 'assert';
-import { parseListOutput, ResourceTreeItem, extractMetadataFields, XcaffoldTreeProvider, MetadataField } from '../treeViewProvider';
-import { XcafIndex } from '../xcafIndex';
 import * as vscode from 'vscode';
-import { XcaffoldCli, CliResult } from '../xcaffoldCli';
+import {
+  parseListOutput,
+  extractMetadataFields,
+  ObjectExplorerProvider,
+  ExplorerNode,
+} from '../treeViewProvider';
+import { XcafProjectModel, XcafKindGroup } from '../xcafProjectModel';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function makeModel(groups: XcafKindGroup[]): XcafProjectModel {
+  return new XcafProjectModel(groups);
+}
+
+function makeGroups(): XcafKindGroup[] {
+  return [
+    {
+      kind: 'agent',
+      displayName: 'AGENTS',
+      resources: [
+        {
+          name: 'coder',
+          kind: 'agent',
+          baseManifest: '/workspace/xcaf/agents/coder/agent.xcaf',
+          overrides: [],
+          artifactDirs: [],
+        },
+        {
+          name: 'reviewer',
+          kind: 'agent',
+          baseManifest: '/workspace/xcaf/agents/reviewer/agent.xcaf',
+          overrides: [
+            { provider: 'claude', path: '/workspace/xcaf/agents/reviewer/agent.claude.xcaf' },
+            { provider: 'gemini', path: '/workspace/xcaf/agents/reviewer/agent.gemini.xcaf' },
+          ],
+          artifactDirs: [
+            { name: 'references', path: '/workspace/xcaf/agents/reviewer/references', files: ['guide.md'] },
+          ],
+        },
+      ],
+    },
+    {
+      kind: 'rule',
+      displayName: 'RULES',
+      resources: [
+        {
+          name: 'security',
+          kind: 'rule',
+          baseManifest: '/workspace/xcaf/rules/security/rule.xcaf',
+          overrides: [],
+          artifactDirs: [],
+        },
+      ],
+    },
+    {
+      kind: 'skill',
+      displayName: 'SKILLS',
+      resources: [
+        {
+          name: 'audit',
+          kind: 'skill',
+          baseManifest: '/workspace/xcaf/skills/audit/skill.xcaf',
+          overrides: [],
+          artifactDirs: [],
+        },
+      ],
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// parseListOutput tests (kept — tests a kept function)
+// ---------------------------------------------------------------------------
 
 suite('TreeViewProvider', () => {
   test('parseListOutput parses xcaffold list output into grouped map', () => {
@@ -61,159 +133,9 @@ suite('TreeViewProvider', () => {
   });
 });
 
-suite('ResourceTreeItem click-to-open', () => {
-  test('leaf ResourceTreeItem has command property when xcafIndex has entry', () => {
-    const index = new XcafIndex();
-    index.setEntry({
-      kind: 'agent',
-      name: 'reviewer',
-      fileUri: '/workspace/xcaf/agents/reviewer.xcaf',
-      nameLine: 3,
-    });
-
-    const item = new ResourceTreeItem(
-      'reviewer',
-      'agent',
-      vscode.TreeItemCollapsibleState.Collapsed,
-      'resource-item',
-      { xcafIndex: index },
-    );
-
-    assert.ok(item.command, 'leaf item should have a command');
-    assert.strictEqual(item.command.command, 'vscode.open');
-  });
-
-  test('leaf ResourceTreeItem has no command when xcafIndex lacks entry', () => {
-    const index = new XcafIndex();
-
-    const item = new ResourceTreeItem(
-      'ghost',
-      'agent',
-      vscode.TreeItemCollapsibleState.Collapsed,
-      'resource-item',
-      { xcafIndex: index },
-    );
-
-    assert.strictEqual(item.command, undefined);
-  });
-
-  test('resource-item ResourceTreeItem has contextValue resource-item', () => {
-    const index = new XcafIndex();
-
-    const item = new ResourceTreeItem(
-      'reviewer',
-      'agent',
-      vscode.TreeItemCollapsibleState.Collapsed,
-      'resource-item',
-      { xcafIndex: index },
-    );
-
-    assert.strictEqual(item.contextValue, 'resource-item');
-  });
-
-  test('collapsible kind-group ResourceTreeItem has contextValue kind-group', () => {
-    const item = new ResourceTreeItem(
-      'AGENTS (2)',
-      'agent',
-      vscode.TreeItemCollapsibleState.Collapsed,
-      'kind-group',
-    );
-
-    assert.strictEqual(item.contextValue, 'kind-group');
-  });
-
-  test('metadata-field ResourceTreeItem has contextValue metadata-field', () => {
-    const item = new ResourceTreeItem(
-      'kind',
-      'agent',
-      vscode.TreeItemCollapsibleState.None,
-      'metadata-field',
-      { description: 'agent' },
-    );
-
-    assert.strictEqual(item.contextValue, 'metadata-field');
-    assert.strictEqual(item.collapsibleState, vscode.TreeItemCollapsibleState.None);
-  });
-
-  test('resource-item stores fileUri from options', () => {
-    const item = new ResourceTreeItem(
-      'reviewer',
-      'agent',
-      vscode.TreeItemCollapsibleState.Collapsed,
-      'resource-item',
-      { fileUri: '/workspace/xcaf/agents/reviewer.xcaf' },
-    );
-
-    assert.strictEqual(item.fileUri, '/workspace/xcaf/agents/reviewer.xcaf');
-  });
-
-  test('metadata-field tooltip shows label: value format', () => {
-    const item = new ResourceTreeItem(
-      'kind',
-      'agent',
-      vscode.TreeItemCollapsibleState.None,
-      'metadata-field',
-      { description: 'agent' },
-    );
-
-    assert.strictEqual(item.tooltip, 'kind: agent');
-  });
-
-  test('metadata-field tooltip uses explicit tooltip option when provided', () => {
-    const item = new ResourceTreeItem(
-      'description',
-      'agent',
-      vscode.TreeItemCollapsibleState.None,
-      'metadata-field',
-      { description: 'Short desc...', tooltip: 'description: Full description text here' },
-    );
-
-    assert.strictEqual(item.tooltip, 'description: Full description text here');
-  });
-
-  test('resource-item tooltip uses description or kind: label fallback', () => {
-    const item = new ResourceTreeItem(
-      'reviewer',
-      'agent',
-      vscode.TreeItemCollapsibleState.Collapsed,
-      'resource-item',
-      { description: 'Code review specialist' },
-    );
-
-    assert.strictEqual(item.tooltip, 'Code review specialist');
-  });
-
-  test('kind-group tooltip falls back to kind: label', () => {
-    const item = new ResourceTreeItem(
-      'AGENTS (2)',
-      'agent',
-      vscode.TreeItemCollapsibleState.Collapsed,
-      'kind-group',
-    );
-
-    assert.strictEqual(item.tooltip, 'agent: AGENTS (2)');
-  });
-
-  test('resource-item resolves fileUri from xcafIndex when not in options', () => {
-    const index = new XcafIndex();
-    index.setEntry({
-      kind: 'agent',
-      name: 'reviewer',
-      fileUri: '/workspace/xcaf/agents/reviewer.xcaf',
-      nameLine: 3,
-    });
-
-    const item = new ResourceTreeItem(
-      'reviewer',
-      'agent',
-      vscode.TreeItemCollapsibleState.Collapsed,
-      'resource-item',
-      { xcafIndex: index },
-    );
-
-    assert.strictEqual(item.fileUri, '/workspace/xcaf/agents/reviewer.xcaf');
-  });
-});
+// ---------------------------------------------------------------------------
+// extractMetadataFields tests (kept — tests a kept function)
+// ---------------------------------------------------------------------------
 
 suite('extractMetadataFields', () => {
   test('extracts kind from frontmatter', () => {
@@ -527,255 +449,262 @@ suite('extractMetadataFields', () => {
   });
 });
 
-suite('XcaffoldTreeProvider getChildren integration', () => {
-  const listStdout = [
-    'my-project  .  2 agents  .  1 skill',
-    '',
-    'AGENTS  (2)',
-    '  coder',
-    '  reviewer',
-    '',
-    'SKILLS  (1)',
-    '  audit',
-  ].join('\n');
+// ---------------------------------------------------------------------------
+// ObjectExplorerProvider tests
+// ---------------------------------------------------------------------------
 
-  const agentXcafContent = [
-    '---',
-    'kind: agent',
-    'name: reviewer',
-    'description: Code review specialist',
-    'targets: [claude, cursor]',
-    'tools: [Read, Write]',
-    '---',
-  ].join('\n');
-
-  function createMockCli(stdout: string): XcaffoldCli {
-    return {
-      run: async () => ({ exitCode: 0, stdout, stderr: '' }),
-      init: async () => {},
-      invalidateCache: () => {},
-    } as unknown as XcaffoldCli;
-  }
-
-  let origWorkspaceFolders: typeof vscode.workspace.workspaceFolders;
-  let origOpenTextDocument: typeof vscode.workspace.openTextDocument;
-
-  setup(() => {
-    origWorkspaceFolders = vscode.workspace.workspaceFolders;
-    origOpenTextDocument = vscode.workspace.openTextDocument;
-
-    (vscode.workspace as any).workspaceFolders = [
-      { uri: { fsPath: '/workspace' }, name: 'workspace', index: 0 },
-    ];
-  });
-
-  teardown(() => {
-    (vscode.workspace as any).workspaceFolders = origWorkspaceFolders;
-    (vscode.workspace as any).openTextDocument = origOpenTextDocument;
-  });
-
-  test('getChildren returns kind-group items at root level', async () => {
-    const cli = createMockCli(listStdout);
-    const provider = new XcaffoldTreeProvider(cli);
-
+suite('ObjectExplorerProvider', () => {
+  test('root level returns sorted kind-group nodes (AGENTS, RULES, SKILLS)', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
     const roots = await provider.getChildren();
-    assert.strictEqual(roots.length, 2);
-    assert.strictEqual(roots[0].itemType, 'kind-group');
-    assert.strictEqual(roots[1].itemType, 'kind-group');
 
-    const labels = roots.map(r => r.label);
-    assert.ok(labels.includes('AGENTS (2)'));
-    assert.ok(labels.includes('SKILLS (1)'));
+    assert.strictEqual(roots.length, 3);
+    // Sorted by kind: agent < rule < skill
+    assert.strictEqual((roots[0] as ExplorerNode).nodeType, 'kind-group');
+    assert.strictEqual((roots[1] as ExplorerNode).nodeType, 'kind-group');
+    assert.strictEqual((roots[2] as ExplorerNode).nodeType, 'kind-group');
+
+    const labels = roots.map(r => r.label as string);
+    assert.strictEqual(labels[0], 'AGENTS (2)');
+    assert.strictEqual(labels[1], 'RULES (1)');
+    assert.strictEqual(labels[2], 'SKILLS (1)');
   });
 
-  test('getChildren uses correct plural for irregular kinds like memory and policy', async () => {
-    const irregularStdout = [
-      'my-project  .  1 memory  .  1 policy',
-      '',
-      'MEMORIES  (1)',
-      '  session-context',
-      '',
-      'POLICIES  (1)',
-      '  security',
-    ].join('\n');
-
-    const cli = createMockCli(irregularStdout);
-    const provider = new XcaffoldTreeProvider(cli);
-
+  test('kind-group label includes count', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
     const roots = await provider.getChildren();
-    assert.strictEqual(roots.length, 2);
 
-    const labels = roots.map(r => r.label);
-    assert.ok(labels.includes('MEMORIES (1)'), `Expected "MEMORIES (1)" in ${JSON.stringify(labels)}`);
-    assert.ok(labels.includes('POLICIES (1)'), `Expected "POLICIES (1)" in ${JSON.stringify(labels)}`);
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS'));
+    assert.ok(agentsNode);
+    assert.strictEqual(agentsNode.label, 'AGENTS (2)');
   });
 
-  test('getChildren returns resource items for a kind-group', async () => {
-    const cli = createMockCli(listStdout);
-    const provider = new XcaffoldTreeProvider(cli);
+  test('empty model returns "No xcaffold project detected" node', async () => {
+    const provider = new ObjectExplorerProvider(makeModel([]));
+    const roots = await provider.getChildren();
 
-    const agentsGroup = new ResourceTreeItem(
-      'AGENTS (2)', 'agent',
-      vscode.TreeItemCollapsibleState.Collapsed, 'kind-group',
-    );
+    assert.strictEqual(roots.length, 1);
+    assert.ok((roots[0].label as string).includes('No xcaffold project detected'));
+  });
 
-    const resources = await provider.getChildren(agentsGroup);
+  test('kind-group expand returns sorted resource nodes', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+    const roots = await provider.getChildren();
+
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    assert.ok(agentsNode);
+
+    const resources = await provider.getChildren(agentsNode);
     assert.strictEqual(resources.length, 2);
+    // Resources sorted by name: coder < reviewer
     assert.strictEqual(resources[0].label, 'coder');
     assert.strictEqual(resources[1].label, 'reviewer');
     resources.forEach(r => {
-      assert.strictEqual(r.itemType, 'resource-item');
-      assert.strictEqual(
-        r.collapsibleState,
-        vscode.TreeItemCollapsibleState.Collapsed,
-      );
+      assert.strictEqual((r as ExplorerNode).nodeType, 'resource');
     });
   });
 
-  test('getChildren returns metadata children for a resource-item', async () => {
-    (vscode.workspace as any).openTextDocument = async () => ({
-      getText: () => agentXcafContent,
-    });
+  test('resource node has resourceUri set to base manifest', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+    const roots = await provider.getChildren();
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    const resources = await provider.getChildren(agentsNode);
 
-    const cli = createMockCli(listStdout);
-    const provider = new XcaffoldTreeProvider(cli);
-
-    const resourceItem = new ResourceTreeItem(
-      'reviewer', 'AGENTS',
-      vscode.TreeItemCollapsibleState.Collapsed, 'resource-item',
-      { fileUri: '/workspace/xcaf/agents/reviewer.xcaf' },
-    );
-
-    const children = await provider.getChildren(resourceItem);
-    assert.strictEqual(children.length, 4);
-
-    assert.strictEqual(children[0].label, 'kind');
-    assert.strictEqual(children[0].description, 'agent');
-    assert.strictEqual(children[1].label, 'description');
-    assert.strictEqual(children[1].description, 'Code review specialist');
-    assert.strictEqual(children[2].label, 'targets');
-    assert.strictEqual(children[2].description, 'claude, cursor');
-    assert.strictEqual(children[3].label, 'tools');
-    assert.strictEqual(children[3].description, '2 tools');
-
-    children.forEach(c => {
-      assert.strictEqual(c.itemType, 'metadata-field');
-      assert.strictEqual(
-        c.collapsibleState,
-        vscode.TreeItemCollapsibleState.None,
-      );
-    });
+    const coderNode = resources.find(r => r.label === 'coder') as ExplorerNode;
+    assert.ok(coderNode);
+    assert.ok(coderNode.resourceUri);
+    assert.strictEqual(coderNode.resourceUri.fsPath, '/workspace/xcaf/agents/coder/agent.xcaf');
   });
 
-  test('getChildren returns overrides and artifacts when directory has them', async () => {
-    (vscode.workspace as any).openTextDocument = async () => ({
-      getText: () => agentXcafContent,
-    });
-    (vscode.workspace as any).fs = {
-      readDirectory: async () => [
-        ['reviewer.xcaf', vscode.FileType.File],
-        ['reviewer.claude.xcaf', vscode.FileType.File],
-        ['reviewer.gemini.xcaf', vscode.FileType.File],
-        ['references', vscode.FileType.Directory],
-      ],
-    };
+  test('resource node has click-to-open command', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+    const roots = await provider.getChildren();
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    const resources = await provider.getChildren(agentsNode);
 
-    const cli = createMockCli(listStdout);
-    const provider = new XcaffoldTreeProvider(cli);
-
-    const resourceItem = new ResourceTreeItem(
-      'reviewer', 'AGENTS',
-      vscode.TreeItemCollapsibleState.Collapsed, 'resource-item',
-      { fileUri: '/workspace/xcaf/agents/reviewer/reviewer.xcaf' },
-    );
-
-    const children = await provider.getChildren(resourceItem);
-
-    // 4 metadata fields + overrides + artifacts = 6
-    assert.strictEqual(children.length, 6);
-
-    const overridesItem = children.find(c => c.label === 'overrides');
-    assert.ok(overridesItem, 'should have overrides item');
-    assert.strictEqual(overridesItem.description, 'reviewer.claude.xcaf, reviewer.gemini.xcaf');
-
-    const artifactsItem = children.find(c => c.label === 'artifacts');
-    assert.ok(artifactsItem, 'should have artifacts item');
-    assert.strictEqual(artifactsItem.description, 'references');
-
-    // Reset fs mock to default
-    (vscode.workspace as any).fs = {
-      readDirectory: async () => [],
-      readFile: async () => new Uint8Array(0),
-      stat: async () => ({ type: 1, ctime: 0, mtime: 0, size: 0 }),
-    };
+    const coderNode = resources.find(r => r.label === 'coder') as ExplorerNode;
+    assert.ok(coderNode);
+    assert.ok(coderNode.command);
+    assert.strictEqual(coderNode.command.command, 'vscode.open');
   });
 
-  test('getChildren returns empty metadata for resource-item without fileUri', async () => {
-    const cli = createMockCli(listStdout);
-    const provider = new XcaffoldTreeProvider(cli);
+  test('resource with overrides shows description badge "[2]"', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+    const roots = await provider.getChildren();
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    const resources = await provider.getChildren(agentsNode);
 
-    const resourceItem = new ResourceTreeItem(
-      'reviewer', 'AGENTS',
-      vscode.TreeItemCollapsibleState.Collapsed, 'resource-item',
-    );
-
-    // Without fileUri, getChildren should not enter metadata branch
-    const children = await provider.getChildren(resourceItem);
-    assert.strictEqual(children.length, 0);
+    const reviewerNode = resources.find(r => r.label === 'reviewer') as ExplorerNode;
+    assert.ok(reviewerNode);
+    assert.strictEqual(reviewerNode.description, '[2]');
   });
 
-  test('getChildren returns empty metadata when file read fails', async () => {
-    (vscode.workspace as any).openTextDocument = async () => {
-      throw new Error('File not found');
-    };
+  test('resource with no overrides has no description', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+    const roots = await provider.getChildren();
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    const resources = await provider.getChildren(agentsNode);
 
-    const cli = createMockCli(listStdout);
-    const provider = new XcaffoldTreeProvider(cli);
-
-    const resourceItem = new ResourceTreeItem(
-      'reviewer', 'AGENTS',
-      vscode.TreeItemCollapsibleState.Collapsed, 'resource-item',
-      { fileUri: '/workspace/xcaf/agents/nonexistent.xcaf' },
-    );
-
-    const children = await provider.getChildren(resourceItem);
-    assert.strictEqual(children.length, 0);
+    const coderNode = resources.find(r => r.label === 'coder') as ExplorerNode;
+    assert.ok(coderNode);
+    assert.strictEqual(coderNode.description, undefined);
   });
 
-  test('getChildren returns error item when no workspace is open', async () => {
-    (vscode.workspace as any).workspaceFolders = undefined;
+  test('resource with overrides and artifacts: 3 sections (Properties, Overrides, Artifacts)', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+    const roots = await provider.getChildren();
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    const resources = await provider.getChildren(agentsNode);
 
-    const cli = createMockCli(listStdout);
-    const provider = new XcaffoldTreeProvider(cli);
+    const reviewerNode = resources.find(r => r.label === 'reviewer') as ExplorerNode;
+    assert.ok(reviewerNode);
+
+    const sections = await provider.getChildren(reviewerNode);
+    assert.strictEqual(sections.length, 3);
+
+    const sectionLabels = sections.map(s => s.label as string);
+    assert.ok(sectionLabels.some(l => l === 'Properties'));
+    assert.ok(sectionLabels.some(l => l.startsWith('Overrides')));
+    assert.ok(sectionLabels.some(l => l === 'Artifacts'));
+  });
+
+  test('resource with no overrides and no artifacts: 1 section (Properties only)', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+    const roots = await provider.getChildren();
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    const resources = await provider.getChildren(agentsNode);
+
+    const coderNode = resources.find(r => r.label === 'coder') as ExplorerNode;
+    assert.ok(coderNode);
+
+    const sections = await provider.getChildren(coderNode);
+    assert.strictEqual(sections.length, 1);
+    assert.strictEqual(sections[0].label, 'Properties');
+  });
+
+  test('resource expand returns Properties section always', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+    const roots = await provider.getChildren();
+    const rulesNode = roots.find(r => (r.label as string).startsWith('RULES')) as ExplorerNode;
+    const resources = await provider.getChildren(rulesNode);
+
+    const securityNode = resources.find(r => r.label === 'security') as ExplorerNode;
+    assert.ok(securityNode);
+
+    const sections = await provider.getChildren(securityNode);
+    assert.strictEqual(sections.length, 1);
+    assert.strictEqual(sections[0].label, 'Properties');
+    assert.strictEqual((sections[0] as ExplorerNode).nodeType, 'section');
+  });
+
+  test('Overrides section expand returns override nodes with provider names', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+    const roots = await provider.getChildren();
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    const resources = await provider.getChildren(agentsNode);
+    const reviewerNode = resources.find(r => r.label === 'reviewer') as ExplorerNode;
+    const sections = await provider.getChildren(reviewerNode);
+
+    const overridesSection = sections.find(s => (s.label as string).startsWith('Overrides')) as ExplorerNode;
+    assert.ok(overridesSection);
+
+    const overrides = await provider.getChildren(overridesSection);
+    assert.strictEqual(overrides.length, 2);
+    const providerNames = overrides.map(o => o.label as string);
+    assert.ok(providerNames.includes('claude'));
+    assert.ok(providerNames.includes('gemini'));
+  });
+
+  test('override node has click-to-open command', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+    const roots = await provider.getChildren();
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    const resources = await provider.getChildren(agentsNode);
+    const reviewerNode = resources.find(r => r.label === 'reviewer') as ExplorerNode;
+    const sections = await provider.getChildren(reviewerNode);
+    const overridesSection = sections.find(s => (s.label as string).startsWith('Overrides')) as ExplorerNode;
+    const overrides = await provider.getChildren(overridesSection);
+
+    const claudeOverride = overrides.find(o => o.label === 'claude') as ExplorerNode;
+    assert.ok(claudeOverride);
+    assert.ok(claudeOverride.command);
+    assert.strictEqual(claudeOverride.command.command, 'vscode.open');
+  });
+
+  test('override node has resourceUri', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+    const roots = await provider.getChildren();
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    const resources = await provider.getChildren(agentsNode);
+    const reviewerNode = resources.find(r => r.label === 'reviewer') as ExplorerNode;
+    const sections = await provider.getChildren(reviewerNode);
+    const overridesSection = sections.find(s => (s.label as string).startsWith('Overrides')) as ExplorerNode;
+    const overrides = await provider.getChildren(overridesSection);
+
+    const claudeOverride = overrides.find(o => o.label === 'claude') as ExplorerNode;
+    assert.ok(claudeOverride);
+    assert.ok(claudeOverride.resourceUri);
+    assert.strictEqual(
+      claudeOverride.resourceUri.fsPath,
+      '/workspace/xcaf/agents/reviewer/agent.claude.xcaf',
+    );
+  });
+
+  test('Properties section returns empty (placeholder for later task)', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+    const roots = await provider.getChildren();
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    const resources = await provider.getChildren(agentsNode);
+    const coderNode = resources.find(r => r.label === 'coder') as ExplorerNode;
+    const sections = await provider.getChildren(coderNode);
+
+    const propertiesSection = sections.find(s => s.label === 'Properties') as ExplorerNode;
+    assert.ok(propertiesSection);
+
+    const props = await provider.getChildren(propertiesSection);
+    assert.strictEqual(props.length, 0);
+  });
+
+  test('Artifacts section returns empty (placeholder for later task)', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+    const roots = await provider.getChildren();
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    const resources = await provider.getChildren(agentsNode);
+    const reviewerNode = resources.find(r => r.label === 'reviewer') as ExplorerNode;
+    const sections = await provider.getChildren(reviewerNode);
+
+    const artifactsSection = sections.find(s => s.label === 'Artifacts') as ExplorerNode;
+    assert.ok(artifactsSection);
+
+    const artifacts = await provider.getChildren(artifactsSection);
+    assert.strictEqual(artifacts.length, 0);
+  });
+
+  test('setModel updates the model so getChildren reflects new data', async () => {
+    const provider = new ObjectExplorerProvider(makeModel([]));
+
+    // Initially empty — returns the "no project detected" placeholder
+    const emptyRoots = await provider.getChildren();
+    assert.strictEqual(emptyRoots.length, 1);
+    assert.ok((emptyRoots[0].label as string).includes('No xcaffold project detected'));
+
+    // After setModel, getChildren returns real kind groups
+    provider.setModel(makeModel(makeGroups()));
+    provider.refresh();
 
     const roots = await provider.getChildren();
-    assert.strictEqual(roots.length, 1);
-    assert.ok((roots[0].label as string).includes('No workspace'));
+    assert.strictEqual(roots.length, 3);
   });
 
-  test('getChildren returns info item when CLI returns empty output', async () => {
-    const cli = createMockCli('');
-    const provider = new XcaffoldTreeProvider(cli);
-
+  test('contextValue on ExplorerNode matches nodeType', async () => {
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
     const roots = await provider.getChildren();
-    assert.strictEqual(roots.length, 1);
-    assert.ok(
-      (roots[0].label as string).includes('No xcaffold project'),
-    );
-  });
 
-  test('getChildren returns error item when CLI throws', async () => {
-    const cli = {
-      run: async () => { throw new Error('binary not found'); },
-      init: async () => {},
-      invalidateCache: () => {},
-    } as unknown as XcaffoldCli;
-    const provider = new XcaffoldTreeProvider(cli);
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    assert.strictEqual(agentsNode.contextValue, 'kind-group');
 
-    const roots = await provider.getChildren();
-    assert.strictEqual(roots.length, 1);
-    assert.ok(
-      (roots[0].label as string).includes('CLI Error'),
-    );
+    const resources = await provider.getChildren(agentsNode);
+    const coderNode = resources.find(r => r.label === 'coder') as ExplorerNode;
+    assert.strictEqual(coderNode.contextValue, 'resource');
   });
 });
