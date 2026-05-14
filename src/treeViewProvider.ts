@@ -1,3 +1,4 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { XcafProjectModel, XcafResource } from './xcafProjectModel';
 
@@ -316,8 +317,11 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
     }
 
     if (element.data.type === 'section' && element.data.sectionName === 'Artifacts') {
-      // Task 6 will implement artifact browsing here
-      return [];
+      return this._getArtifactDirChildren(element.data);
+    }
+
+    if (element.data.type === 'artifact-dir') {
+      return this._getArtifactFileChildren(element.data as ArtifactDirData);
     }
 
     return [];
@@ -446,6 +450,42 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
       );
       node.resourceUri = vscode.Uri.file(o.path);
       node.command = { command: 'vscode.open', title: 'Open', arguments: [vscode.Uri.file(o.path)] };
+      return node;
+    });
+  }
+
+  private _getArtifactDirChildren(data: SectionData): ExplorerNode[] {
+    const resource = this.model.getResource(data.parentKind, data.parentName);
+    if (!resource) {
+      return [];
+    }
+    return resource.artifactDirs.map(ad => {
+      const fileWord = ad.files.length === 1 ? 'file' : 'files';
+      return new ExplorerNode(
+        `${ad.name}/ (${ad.files.length} ${fileWord})`,
+        'artifact-dir',
+        ad.files.length > 0
+          ? vscode.TreeItemCollapsibleState.Collapsed
+          : vscode.TreeItemCollapsibleState.None,
+        { type: 'artifact-dir', dirName: ad.name, dirPath: ad.path, files: ad.files },
+      );
+    });
+  }
+
+  private _getArtifactFileChildren(data: ArtifactDirData): ExplorerNode[] {
+    if (data.files.length === 0) {
+      return [];
+    }
+    return data.files.map(f => {
+      const filePath = path.join(data.dirPath, f);
+      const node = new ExplorerNode(
+        f,
+        'artifact-file',
+        vscode.TreeItemCollapsibleState.None,
+        { type: 'artifact-file', fileName: f, filePath },
+      );
+      node.resourceUri = vscode.Uri.file(filePath);
+      node.command = { command: 'vscode.open', title: 'Open', arguments: [vscode.Uri.file(filePath)] };
       return node;
     });
   }

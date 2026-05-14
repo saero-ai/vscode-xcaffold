@@ -773,19 +773,177 @@ suite('ObjectExplorerProvider', () => {
     }
   });
 
-  test('Artifacts section returns empty (placeholder for later task)', async () => {
-    const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
+  test('Artifacts section returns artifact-dir nodes', async () => {
+    const groups: XcafKindGroup[] = [
+      {
+        kind: 'skill',
+        displayName: 'SKILLS',
+        resources: [
+          {
+            name: 'audit',
+            kind: 'skill',
+            baseManifest: '/workspace/xcaf/skills/audit/skill.xcaf',
+            overrides: [],
+            artifactDirs: [
+              { name: 'references', path: '/workspace/xcaf/skills/audit/references', files: ['guide.md', 'patterns.md'] },
+            ],
+          },
+        ],
+      },
+    ];
+    const provider = new ObjectExplorerProvider(makeModel(groups));
     const roots = await provider.getChildren();
-    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
-    const resources = await provider.getChildren(agentsNode);
-    const reviewerNode = resources.find(r => r.label === 'reviewer') as ExplorerNode;
-    const sections = await provider.getChildren(reviewerNode);
+    const skillsNode = roots.find(r => (r.label as string).startsWith('SKILLS')) as ExplorerNode;
+    const resources = await provider.getChildren(skillsNode);
+    const auditNode = resources.find(r => r.label === 'audit') as ExplorerNode;
+    const sections = await provider.getChildren(auditNode);
 
     const artifactsSection = sections.find(s => s.label === 'Artifacts') as ExplorerNode;
     assert.ok(artifactsSection);
 
-    const artifacts = await provider.getChildren(artifactsSection);
-    assert.strictEqual(artifacts.length, 0);
+    const artifactNodes = await provider.getChildren(artifactsSection);
+    assert.strictEqual(artifactNodes.length, 1, 'should return one artifact-dir node');
+    const dirNode = artifactNodes[0] as ExplorerNode;
+    assert.strictEqual(dirNode.nodeType, 'artifact-dir');
+    assert.strictEqual(dirNode.label, 'references/ (2 files)');
+  });
+
+  test('Artifacts section artifact-dir node expands to artifact-file nodes', async () => {
+    const groups: XcafKindGroup[] = [
+      {
+        kind: 'skill',
+        displayName: 'SKILLS',
+        resources: [
+          {
+            name: 'audit',
+            kind: 'skill',
+            baseManifest: '/workspace/xcaf/skills/audit/skill.xcaf',
+            overrides: [],
+            artifactDirs: [
+              { name: 'references', path: '/workspace/xcaf/skills/audit/references', files: ['guide.md', 'patterns.md'] },
+            ],
+          },
+        ],
+      },
+    ];
+    const provider = new ObjectExplorerProvider(makeModel(groups));
+    const roots = await provider.getChildren();
+    const skillsNode = roots.find(r => (r.label as string).startsWith('SKILLS')) as ExplorerNode;
+    const resources = await provider.getChildren(skillsNode);
+    const auditNode = resources.find(r => r.label === 'audit') as ExplorerNode;
+    const sections = await provider.getChildren(auditNode);
+    const artifactsSection = sections.find(s => s.label === 'Artifacts') as ExplorerNode;
+    const artifactNodes = await provider.getChildren(artifactsSection);
+    const dirNode = artifactNodes[0] as ExplorerNode;
+
+    const fileNodes = await provider.getChildren(dirNode);
+    assert.strictEqual(fileNodes.length, 2, 'should return two file nodes');
+    const fileLabels = fileNodes.map(f => f.label as string);
+    assert.ok(fileLabels.includes('guide.md'));
+    assert.ok(fileLabels.includes('patterns.md'));
+    fileNodes.forEach(f => {
+      assert.strictEqual((f as ExplorerNode).nodeType, 'artifact-file');
+    });
+  });
+
+  test('Artifact-file node has resourceUri and vscode.open command', async () => {
+    const groups: XcafKindGroup[] = [
+      {
+        kind: 'skill',
+        displayName: 'SKILLS',
+        resources: [
+          {
+            name: 'audit',
+            kind: 'skill',
+            baseManifest: '/workspace/xcaf/skills/audit/skill.xcaf',
+            overrides: [],
+            artifactDirs: [
+              { name: 'references', path: '/workspace/xcaf/skills/audit/references', files: ['guide.md'] },
+            ],
+          },
+        ],
+      },
+    ];
+    const provider = new ObjectExplorerProvider(makeModel(groups));
+    const roots = await provider.getChildren();
+    const skillsNode = roots[0] as ExplorerNode;
+    const resources = await provider.getChildren(skillsNode);
+    const auditNode = resources[0] as ExplorerNode;
+    const sections = await provider.getChildren(auditNode);
+    const artifactsSection = sections.find(s => s.label === 'Artifacts') as ExplorerNode;
+    const artifactNodes = await provider.getChildren(artifactsSection);
+    const dirNode = artifactNodes[0] as ExplorerNode;
+    const fileNodes = await provider.getChildren(dirNode);
+
+    const fileNode = fileNodes[0] as ExplorerNode;
+    assert.ok(fileNode.resourceUri, 'should have resourceUri');
+    assert.strictEqual(fileNode.resourceUri.fsPath, '/workspace/xcaf/skills/audit/references/guide.md');
+    assert.ok(fileNode.command, 'should have command');
+    assert.strictEqual(fileNode.command.command, 'vscode.open');
+  });
+
+  test('Empty artifact-dir shows "(0 files)" and is not collapsible', async () => {
+    const groups: XcafKindGroup[] = [
+      {
+        kind: 'skill',
+        displayName: 'SKILLS',
+        resources: [
+          {
+            name: 'audit',
+            kind: 'skill',
+            baseManifest: '/workspace/xcaf/skills/audit/skill.xcaf',
+            overrides: [],
+            artifactDirs: [
+              { name: 'references', path: '/workspace/xcaf/skills/audit/references', files: [] },
+            ],
+          },
+        ],
+      },
+    ];
+    const provider = new ObjectExplorerProvider(makeModel(groups));
+    const roots = await provider.getChildren();
+    const skillsNode = roots[0] as ExplorerNode;
+    const resources = await provider.getChildren(skillsNode);
+    const auditNode = resources[0] as ExplorerNode;
+    const sections = await provider.getChildren(auditNode);
+    const artifactsSection = sections.find(s => s.label === 'Artifacts') as ExplorerNode;
+    const artifactNodes = await provider.getChildren(artifactsSection);
+
+    assert.strictEqual(artifactNodes.length, 1);
+    const dirNode = artifactNodes[0] as ExplorerNode;
+    assert.strictEqual(dirNode.label, 'references/ (0 files)');
+    assert.strictEqual(dirNode.collapsibleState, vscode.TreeItemCollapsibleState.None);
+  });
+
+  test('Artifact-dir with 1 file shows singular "file" not "files"', async () => {
+    const groups: XcafKindGroup[] = [
+      {
+        kind: 'skill',
+        displayName: 'SKILLS',
+        resources: [
+          {
+            name: 'audit',
+            kind: 'skill',
+            baseManifest: '/workspace/xcaf/skills/audit/skill.xcaf',
+            overrides: [],
+            artifactDirs: [
+              { name: 'references', path: '/workspace/xcaf/skills/audit/references', files: ['guide.md'] },
+            ],
+          },
+        ],
+      },
+    ];
+    const provider = new ObjectExplorerProvider(makeModel(groups));
+    const roots = await provider.getChildren();
+    const skillsNode = roots[0] as ExplorerNode;
+    const resources = await provider.getChildren(skillsNode);
+    const auditNode = resources[0] as ExplorerNode;
+    const sections = await provider.getChildren(auditNode);
+    const artifactsSection = sections.find(s => s.label === 'Artifacts') as ExplorerNode;
+    const artifactNodes = await provider.getChildren(artifactsSection);
+
+    const dirNode = artifactNodes[0] as ExplorerNode;
+    assert.strictEqual(dirNode.label, 'references/ (1 file)');
   });
 
   test('setModel updates the model so getChildren reflects new data', async () => {
