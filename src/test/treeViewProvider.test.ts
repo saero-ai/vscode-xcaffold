@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { parseListOutput, ResourceTreeItem, extractMetadataFields, XcaffoldTreeProvider } from '../treeViewProvider';
+import { parseListOutput, ResourceTreeItem, extractMetadataFields, XcaffoldTreeProvider, MetadataField } from '../treeViewProvider';
 import { XcafIndex } from '../xcafIndex';
 import * as vscode from 'vscode';
 import { XcaffoldCli, CliResult } from '../xcaffoldCli';
@@ -19,10 +19,10 @@ suite('TreeViewProvider', () => {
 
     const grouped = parseListOutput(stdout);
     assert.strictEqual(grouped.size, 2);
-    assert.ok(grouped.has('AGENTS'));
-    assert.ok(grouped.has('SKILLS'));
+    assert.ok(grouped.has('agent'));
+    assert.ok(grouped.has('skill'));
 
-    const agents = grouped.get('AGENTS')!;
+    const agents = grouped.get('agent')!;
     assert.strictEqual(agents.length, 2);
     assert.strictEqual(agents[0].name, 'coder');
     assert.strictEqual(agents[1].name, 'reviewer');
@@ -32,13 +32,40 @@ suite('TreeViewProvider', () => {
     const grouped = parseListOutput('');
     assert.strictEqual(grouped.size, 0);
   });
+
+  test('parseListOutput normalizes MEMORIES section to memory kind', () => {
+    const stdout = [
+      'my-project  .  1 memory',
+      '',
+      'MEMORIES  (1)',
+      '  session-context',
+    ].join('\n');
+
+    const grouped = parseListOutput(stdout);
+    assert.ok(grouped.has('memory'));
+    assert.strictEqual(grouped.get('memory')!.length, 1);
+    assert.strictEqual(grouped.get('memory')![0].name, 'session-context');
+  });
+
+  test('parseListOutput normalizes POLICIES section to policy kind', () => {
+    const stdout = [
+      'my-project  .  1 policy',
+      '',
+      'POLICIES  (1)',
+      '  security',
+    ].join('\n');
+
+    const grouped = parseListOutput(stdout);
+    assert.ok(grouped.has('policy'));
+    assert.strictEqual(grouped.get('policy')!.length, 1);
+  });
 });
 
 suite('ResourceTreeItem click-to-open', () => {
   test('leaf ResourceTreeItem has command property when xcafIndex has entry', () => {
     const index = new XcafIndex();
     index.setEntry({
-      kind: 'AGENTS',
+      kind: 'agent',
       name: 'reviewer',
       fileUri: '/workspace/xcaf/agents/reviewer.xcaf',
       nameLine: 3,
@@ -46,7 +73,7 @@ suite('ResourceTreeItem click-to-open', () => {
 
     const item = new ResourceTreeItem(
       'reviewer',
-      'AGENTS',
+      'agent',
       vscode.TreeItemCollapsibleState.Collapsed,
       'resource-item',
       { xcafIndex: index },
@@ -61,7 +88,7 @@ suite('ResourceTreeItem click-to-open', () => {
 
     const item = new ResourceTreeItem(
       'ghost',
-      'AGENTS',
+      'agent',
       vscode.TreeItemCollapsibleState.Collapsed,
       'resource-item',
       { xcafIndex: index },
@@ -75,7 +102,7 @@ suite('ResourceTreeItem click-to-open', () => {
 
     const item = new ResourceTreeItem(
       'reviewer',
-      'AGENTS',
+      'agent',
       vscode.TreeItemCollapsibleState.Collapsed,
       'resource-item',
       { xcafIndex: index },
@@ -87,7 +114,7 @@ suite('ResourceTreeItem click-to-open', () => {
   test('collapsible kind-group ResourceTreeItem has contextValue kind-group', () => {
     const item = new ResourceTreeItem(
       'AGENTS (2)',
-      'AGENTS',
+      'agent',
       vscode.TreeItemCollapsibleState.Collapsed,
       'kind-group',
     );
@@ -98,7 +125,7 @@ suite('ResourceTreeItem click-to-open', () => {
   test('metadata-field ResourceTreeItem has contextValue metadata-field', () => {
     const item = new ResourceTreeItem(
       'kind',
-      'AGENTS',
+      'agent',
       vscode.TreeItemCollapsibleState.None,
       'metadata-field',
       { description: 'agent' },
@@ -111,7 +138,7 @@ suite('ResourceTreeItem click-to-open', () => {
   test('resource-item stores fileUri from options', () => {
     const item = new ResourceTreeItem(
       'reviewer',
-      'AGENTS',
+      'agent',
       vscode.TreeItemCollapsibleState.Collapsed,
       'resource-item',
       { fileUri: '/workspace/xcaf/agents/reviewer.xcaf' },
@@ -120,10 +147,57 @@ suite('ResourceTreeItem click-to-open', () => {
     assert.strictEqual(item.fileUri, '/workspace/xcaf/agents/reviewer.xcaf');
   });
 
+  test('metadata-field tooltip shows label: value format', () => {
+    const item = new ResourceTreeItem(
+      'kind',
+      'agent',
+      vscode.TreeItemCollapsibleState.None,
+      'metadata-field',
+      { description: 'agent' },
+    );
+
+    assert.strictEqual(item.tooltip, 'kind: agent');
+  });
+
+  test('metadata-field tooltip uses explicit tooltip option when provided', () => {
+    const item = new ResourceTreeItem(
+      'description',
+      'agent',
+      vscode.TreeItemCollapsibleState.None,
+      'metadata-field',
+      { description: 'Short desc...', tooltip: 'description: Full description text here' },
+    );
+
+    assert.strictEqual(item.tooltip, 'description: Full description text here');
+  });
+
+  test('resource-item tooltip uses description or kind: label fallback', () => {
+    const item = new ResourceTreeItem(
+      'reviewer',
+      'agent',
+      vscode.TreeItemCollapsibleState.Collapsed,
+      'resource-item',
+      { description: 'Code review specialist' },
+    );
+
+    assert.strictEqual(item.tooltip, 'Code review specialist');
+  });
+
+  test('kind-group tooltip falls back to kind: label', () => {
+    const item = new ResourceTreeItem(
+      'AGENTS (2)',
+      'agent',
+      vscode.TreeItemCollapsibleState.Collapsed,
+      'kind-group',
+    );
+
+    assert.strictEqual(item.tooltip, 'agent: AGENTS (2)');
+  });
+
   test('resource-item resolves fileUri from xcafIndex when not in options', () => {
     const index = new XcafIndex();
     index.setEntry({
-      kind: 'AGENTS',
+      kind: 'agent',
       name: 'reviewer',
       fileUri: '/workspace/xcaf/agents/reviewer.xcaf',
       nameLine: 3,
@@ -131,7 +205,7 @@ suite('ResourceTreeItem click-to-open', () => {
 
     const item = new ResourceTreeItem(
       'reviewer',
-      'AGENTS',
+      'agent',
       vscode.TreeItemCollapsibleState.Collapsed,
       'resource-item',
       { xcafIndex: index },
@@ -350,6 +424,107 @@ suite('extractMetadataFields', () => {
     assert.ok(descField);
     assert.strictEqual(descField.value, 'A code review agent');
   });
+
+  test('extracts version field', () => {
+    const text = [
+      '---',
+      'kind: agent',
+      'name: reviewer',
+      'version: "1.0"',
+      '---',
+    ].join('\n');
+
+    const fields = extractMetadataFields(text);
+    const versionField = fields.find(f => f.label === 'version');
+    assert.ok(versionField, 'should have version field');
+    assert.strictEqual(versionField.value, '1.0');
+  });
+
+  test('extracts model field', () => {
+    const text = [
+      '---',
+      'kind: agent',
+      'name: reviewer',
+      'model: sonnet',
+      '---',
+    ].join('\n');
+
+    const fields = extractMetadataFields(text);
+    const modelField = fields.find(f => f.label === 'model');
+    assert.ok(modelField, 'should have model field');
+    assert.strictEqual(modelField.value, 'sonnet');
+  });
+
+  test('extracts activation field', () => {
+    const text = [
+      '---',
+      'kind: rule',
+      'name: my-rule',
+      'activation: always',
+      '---',
+    ].join('\n');
+
+    const fields = extractMetadataFields(text);
+    const activationField = fields.find(f => f.label === 'activation');
+    assert.ok(activationField, 'should have activation field');
+    assert.strictEqual(activationField.value, 'always');
+  });
+
+  test('returns fields in correct order: kind, description, version, model, targets, activation, tools', () => {
+    const text = [
+      '---',
+      'kind: agent',
+      'name: reviewer',
+      'description: Code review specialist',
+      'version: "1.0"',
+      'model: sonnet',
+      'targets: [claude, cursor]',
+      'activation: on-demand',
+      'tools: [Read, Write]',
+      '---',
+    ].join('\n');
+
+    const fields = extractMetadataFields(text);
+    assert.strictEqual(fields.length, 7);
+    assert.strictEqual(fields[0].label, 'kind');
+    assert.strictEqual(fields[1].label, 'description');
+    assert.strictEqual(fields[2].label, 'version');
+    assert.strictEqual(fields[3].label, 'model');
+    assert.strictEqual(fields[4].label, 'targets');
+    assert.strictEqual(fields[5].label, 'activation');
+    assert.strictEqual(fields[6].label, 'tools');
+  });
+
+  test('description field has fullValue with untruncated text', () => {
+    const longDesc = 'A'.repeat(80);
+    const text = [
+      '---',
+      'kind: agent',
+      `description: ${longDesc}`,
+      '---',
+    ].join('\n');
+
+    const fields = extractMetadataFields(text);
+    const descField = fields.find(f => f.label === 'description');
+    assert.ok(descField, 'should have description field');
+    assert.strictEqual(descField.value.length, 60);
+    assert.strictEqual(descField.fullValue, longDesc);
+  });
+
+  test('description field fullValue equals value when not truncated', () => {
+    const text = [
+      '---',
+      'kind: agent',
+      'description: Short desc',
+      '---',
+    ].join('\n');
+
+    const fields = extractMetadataFields(text);
+    const descField = fields.find(f => f.label === 'description');
+    assert.ok(descField);
+    assert.strictEqual(descField.fullValue, 'Short desc');
+    assert.strictEqual(descField.value, descField.fullValue);
+  });
 });
 
 suite('XcaffoldTreeProvider getChildren integration', () => {
@@ -413,12 +588,34 @@ suite('XcaffoldTreeProvider getChildren integration', () => {
     assert.ok(labels.includes('SKILLS (1)'));
   });
 
+  test('getChildren uses correct plural for irregular kinds like memory and policy', async () => {
+    const irregularStdout = [
+      'my-project  .  1 memory  .  1 policy',
+      '',
+      'MEMORIES  (1)',
+      '  session-context',
+      '',
+      'POLICIES  (1)',
+      '  security',
+    ].join('\n');
+
+    const cli = createMockCli(irregularStdout);
+    const provider = new XcaffoldTreeProvider(cli);
+
+    const roots = await provider.getChildren();
+    assert.strictEqual(roots.length, 2);
+
+    const labels = roots.map(r => r.label);
+    assert.ok(labels.includes('MEMORIES (1)'), `Expected "MEMORIES (1)" in ${JSON.stringify(labels)}`);
+    assert.ok(labels.includes('POLICIES (1)'), `Expected "POLICIES (1)" in ${JSON.stringify(labels)}`);
+  });
+
   test('getChildren returns resource items for a kind-group', async () => {
     const cli = createMockCli(listStdout);
     const provider = new XcaffoldTreeProvider(cli);
 
     const agentsGroup = new ResourceTreeItem(
-      'AGENTS (2)', 'AGENTS',
+      'AGENTS (2)', 'agent',
       vscode.TreeItemCollapsibleState.Collapsed, 'kind-group',
     );
 
@@ -468,6 +665,49 @@ suite('XcaffoldTreeProvider getChildren integration', () => {
         vscode.TreeItemCollapsibleState.None,
       );
     });
+  });
+
+  test('getChildren returns overrides and artifacts when directory has them', async () => {
+    (vscode.workspace as any).openTextDocument = async () => ({
+      getText: () => agentXcafContent,
+    });
+    (vscode.workspace as any).fs = {
+      readDirectory: async () => [
+        ['reviewer.xcaf', vscode.FileType.File],
+        ['reviewer.claude.xcaf', vscode.FileType.File],
+        ['reviewer.gemini.xcaf', vscode.FileType.File],
+        ['references', vscode.FileType.Directory],
+      ],
+    };
+
+    const cli = createMockCli(listStdout);
+    const provider = new XcaffoldTreeProvider(cli);
+
+    const resourceItem = new ResourceTreeItem(
+      'reviewer', 'AGENTS',
+      vscode.TreeItemCollapsibleState.Collapsed, 'resource-item',
+      { fileUri: '/workspace/xcaf/agents/reviewer/reviewer.xcaf' },
+    );
+
+    const children = await provider.getChildren(resourceItem);
+
+    // 4 metadata fields + overrides + artifacts = 6
+    assert.strictEqual(children.length, 6);
+
+    const overridesItem = children.find(c => c.label === 'overrides');
+    assert.ok(overridesItem, 'should have overrides item');
+    assert.strictEqual(overridesItem.description, 'reviewer.claude.xcaf, reviewer.gemini.xcaf');
+
+    const artifactsItem = children.find(c => c.label === 'artifacts');
+    assert.ok(artifactsItem, 'should have artifacts item');
+    assert.strictEqual(artifactsItem.description, 'references');
+
+    // Reset fs mock to default
+    (vscode.workspace as any).fs = {
+      readDirectory: async () => [],
+      readFile: async () => new Uint8Array(0),
+      stat: async () => ({ type: 1, ctime: 0, mtime: 0, size: 0 }),
+    };
   });
 
   test('getChildren returns empty metadata for resource-item without fileUri', async () => {

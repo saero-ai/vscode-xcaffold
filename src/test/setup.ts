@@ -68,7 +68,13 @@ mock('vscode', {
       dispose: () => {},
     }),
     findFiles: async () => [],
+    fs: {
+      readDirectory: async () => [],
+      readFile: async () => new Uint8Array(0),
+      stat: async () => ({ type: 1, ctime: 0, mtime: 0, size: 0 }),
+    },
   },
+  FileType: { Unknown: 0, File: 1, Directory: 2, SymbolicLink: 64 },
   Range: class {
     public start: { line: number; character: number };
     public end: { line: number; character: number };

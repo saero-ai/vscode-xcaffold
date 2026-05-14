@@ -1,6 +1,9 @@
 // src/test/miniGraphProvider.test.ts
 import * as assert from 'assert';
-import { extractNeighborhood } from '../miniGraphProvider';
+import {
+  extractNeighborhood,
+  buildEmptyStateHtml,
+} from '../miniGraphProvider';
 import type { GraphNode, GraphEdge } from '../webview/graphWebview';
 
 suite('extractNeighborhood', () => {
@@ -136,5 +139,85 @@ suite('extractNeighborhood', () => {
     assert.strictEqual(result.nodes.length, 1);
     assert.strictEqual(result.nodes[0].id, 'agent:a');
     assert.strictEqual(result.edges.length, 0);
+  });
+});
+
+suite('buildEmptyStateHtml', () => {
+  const nonce = 'test-nonce-abc123';
+
+  test('renders placeholder message without full graph link', () => {
+    const html = buildEmptyStateHtml(
+      'No dependency data available.',
+      false,
+      nonce,
+    );
+    assert.ok(
+      html.includes('placeholder'),
+      'should use placeholder CSS class',
+    );
+    assert.ok(
+      html.includes('No dependency data available.'),
+      'should contain the message text',
+    );
+    assert.ok(
+      !html.includes('fullGraphLink'),
+      'should not contain the full graph link',
+    );
+    assert.ok(
+      !html.includes('openFullGraph'),
+      'should not contain openFullGraph message',
+    );
+  });
+
+  test('renders placeholder message with full graph link', () => {
+    const html = buildEmptyStateHtml(
+      'my-agent has no dependencies.',
+      true,
+      nonce,
+    );
+    assert.ok(
+      html.includes('placeholder'),
+      'should use placeholder CSS class',
+    );
+    assert.ok(
+      html.includes('my-agent has no dependencies.'),
+      'should contain the message text',
+    );
+    assert.ok(
+      html.includes('fullGraphLink'),
+      'should contain the full graph link element',
+    );
+    assert.ok(
+      html.includes('View full graph'),
+      'should contain the link text',
+    );
+    assert.ok(
+      html.includes('openFullGraph'),
+      'should post openFullGraph command',
+    );
+  });
+
+  test('escapes HTML in the message text', () => {
+    const html = buildEmptyStateHtml(
+      '<script>alert("xss")</script>',
+      false,
+      nonce,
+    );
+    assert.ok(
+      !html.includes('<script>alert'),
+      'should not contain unescaped script tag',
+    );
+    assert.ok(
+      html.includes('&lt;script&gt;'),
+      'should escape angle brackets',
+    );
+  });
+
+  test('includes nonce on script tag when link is shown', () => {
+    const html = buildEmptyStateHtml('Test message.', true, nonce);
+    assert.ok(
+      html.includes(`nonce="${nonce}"`),
+      'script tag should contain the nonce',
+    );
   });
 });

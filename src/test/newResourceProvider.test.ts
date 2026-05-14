@@ -2,16 +2,17 @@ import * as assert from 'assert';
 import {
   buildResourcePath,
   buildVariantChoices,
+  pluralizeKind,
   validateName,
 } from '../newResourceProvider';
 
 suite('newResourceProvider', () => {
   suite('buildResourcePath', () => {
-    test('returns canonical xcaf directory layout', () => {
+    test('returns canonical xcaf directory layout with plural dir and kind filename', () => {
       const result = buildResourcePath('/workspace', 'agent', 'my-agent');
       assert.strictEqual(
         result,
-        '/workspace/xcaf/agent/my-agent/my-agent.xcaf',
+        '/workspace/xcaf/agents/my-agent/agent.xcaf',
       );
     });
 
@@ -23,24 +24,55 @@ suite('newResourceProvider', () => {
       );
       assert.strictEqual(
         result,
-        '/home/user/project/xcaf/skill/code-review/code-review.xcaf',
+        '/home/user/project/xcaf/skills/code-review/skill.xcaf',
       );
     });
 
     test('handles single-character name', () => {
       const result = buildResourcePath('/ws', 'rule', 'a');
-      assert.strictEqual(result, '/ws/xcaf/rule/a/a.xcaf');
+      assert.strictEqual(result, '/ws/xcaf/rules/a/rule.xcaf');
     });
 
     test('handles all primary kinds', () => {
       const kinds = ['agent', 'skill', 'rule', 'workflow'];
+      const expected: Record<string, string> = {
+        agent: 'agents',
+        skill: 'skills',
+        rule: 'rules',
+        workflow: 'workflows',
+      };
       for (const kind of kinds) {
         const result = buildResourcePath('/ws', kind, 'test');
         assert.ok(
-          result.includes(`/xcaf/${kind}/test/test.xcaf`),
-          `path for ${kind} should follow layout`,
+          result.includes(`/xcaf/${expected[kind]}/test/${kind}.xcaf`),
+          `path for ${kind} should use plural dir and kind filename`,
         );
       }
+    });
+  });
+
+  suite('pluralizeKind', () => {
+    test('pluralizes standard kinds', () => {
+      assert.strictEqual(pluralizeKind('agent'), 'agents');
+      assert.strictEqual(pluralizeKind('skill'), 'skills');
+      assert.strictEqual(pluralizeKind('rule'), 'rules');
+      assert.strictEqual(pluralizeKind('policy'), 'policies');
+    });
+
+    test('returns self for uncountable kinds', () => {
+      assert.strictEqual(pluralizeKind('mcp'), 'mcp');
+      assert.strictEqual(pluralizeKind('context'), 'context');
+      assert.strictEqual(pluralizeKind('global'), 'global');
+      assert.strictEqual(pluralizeKind('project'), 'project');
+    });
+
+    test('handles already-plural input', () => {
+      assert.strictEqual(pluralizeKind('hooks'), 'hooks');
+      assert.strictEqual(pluralizeKind('settings'), 'settings');
+    });
+
+    test('falls back to appending s for unknown kinds', () => {
+      assert.strictEqual(pluralizeKind('widget'), 'widgets');
     });
   });
 

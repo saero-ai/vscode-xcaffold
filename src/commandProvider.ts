@@ -372,18 +372,24 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
   disposables.push(
     vscode.commands.registerCommand(
       'xcaffold.deleteResource',
-      async (item: { fileUri?: string; label?: string }) => {
-        if (!item?.fileUri) {
+      async (item: { resourceUri?: vscode.Uri; fileUri?: string; label?: string }) => {
+        const filePath = item?.resourceUri?.fsPath || item?.fileUri;
+        if (!filePath) {
+          vscode.window.showErrorMessage(
+            'xcaffold: Cannot determine resource file path.',
+          );
           return;
         }
         const confirm = await vscode.window.showWarningMessage(
-          `Delete resource "${String(item.label)}"? This will remove the .xcaf file.`,
+          `Delete resource "${String(item.label)}"? This will remove the resource directory.`,
           { modal: true },
           'Delete',
         );
         if (confirm === 'Delete') {
+          const fileDir = path.dirname(filePath);
           await vscode.workspace.fs.delete(
-            vscode.Uri.file(item.fileUri),
+            vscode.Uri.file(fileDir),
+            { recursive: true },
           );
         }
       },

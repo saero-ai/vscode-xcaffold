@@ -32,7 +32,7 @@ export function buildCsp(cspSource: string, nonce: string): string {
   return [
     "default-src 'none'",
     `script-src 'nonce-${nonce}'`,
-    `style-src ${cspSource} 'unsafe-inline'`,
+    `style-src 'nonce-${nonce}'`,
     `img-src ${cspSource} data:`,
     `font-src ${cspSource}`,
   ].join('; ');
@@ -132,7 +132,7 @@ export function wrapHtml(options: WrapHtmlOptions): string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="${csp}">
     <title>${options.title}</title>
-    <style>${BASE_STYLES}${options.styles}</style>
+    <style nonce="${nonce}">${BASE_STYLES}${options.styles}</style>
     ${scriptTags}
 </head>
 <body>

@@ -15,4 +15,8 @@ AGENTS.md
 
 # Copilot harness only (preserve workflows, templates, CODEOWNERS)
 .github/copilot-instructions.md
-.github/copilot/
+.github/agents/
+.github/instructions/
+.github/hooks/
+.github/skills/
+

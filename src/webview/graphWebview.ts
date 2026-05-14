@@ -222,18 +222,25 @@ function graphBody(
   kindColorsJson: string,
   kindList: string[],
 ): string {
+  const swatchStyles = kindList
+    .map((k) => `.swatch-${escapeHtml(k)} { background: ${kindColor(k)}; }`)
+    .join('\n      ');
+
   const filterCheckboxes = kindList
     .map(
       (k) =>
         `<label class="kind-filter">
           <input type="checkbox" data-kind="${escapeHtml(k)}" checked />
-          <span class="kind-swatch" style="background:${kindColor(k)}"></span>
+          <span class="kind-swatch swatch-${escapeHtml(k)}"></span>
           <span>${escapeHtml(k)}</span>
         </label>`,
     )
     .join('\n');
 
   return `
+    <style nonce="${nonce}">
+      ${swatchStyles}
+    </style>
     <div class="graph-toolbar">
       <input type="text" id="searchInput" placeholder="Search nodes..." />
       <div class="kind-filters">

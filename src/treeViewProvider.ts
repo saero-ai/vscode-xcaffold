@@ -1,3 +1,4 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { XcaffoldCli } from './xcaffoldCli';
 import { XcafIndex } from './xcafIndex';
@@ -13,6 +14,7 @@ export type TreeItemType = 'kind-group' | 'resource-item' | 'metadata-field';
 export interface MetadataField {
   label: string;
   value: string;
+  fullValue?: string;
 }
 
 /**
@@ -37,6 +39,10 @@ export function extractMetadataFields(text: string): MetadataField[] {
 
   let kind: string | undefined;
   let description: string | undefined;
+  let descriptionFull: string | undefined;
+  let version: string | undefined;
+  let model: string | undefined;
+  let activation: string | undefined;
   const targets: string[] = [];
   let toolsCount = 0;
   let inTargets = false;
@@ -63,7 +69,26 @@ export function extractMetadataFields(text: string): MetadataField[] {
     const descMatch = /^description:\s*(.+)$/.exec(trimmed);
     if (descMatch && isTopLevel) {
       const raw = descMatch[1].replace(/^["']|["']$/g, '').trim();
+      descriptionFull = raw;
       description = raw.length > 60 ? raw.substring(0, 57) + '...' : raw;
+      continue;
+    }
+
+    const versionMatch = /^version:\s*(.+)$/.exec(trimmed);
+    if (versionMatch && isTopLevel) {
+      version = versionMatch[1].replace(/^["']|["']$/g, '').trim();
+      continue;
+    }
+
+    const modelMatch = /^model:\s*(.+)$/.exec(trimmed);
+    if (modelMatch && isTopLevel) {
+      model = modelMatch[1].replace(/^["']|["']$/g, '').trim();
+      continue;
+    }
+
+    const activationMatch = /^activation:\s*(.+)$/.exec(trimmed);
+    if (activationMatch && isTopLevel) {
+      activation = activationMatch[1].replace(/^["']|["']$/g, '').trim();
       continue;
     }
 
@@ -124,16 +149,60 @@ export function extractMetadataFields(text: string): MetadataField[] {
     fields.push({ label: 'kind', value: kind });
   }
   if (description) {
-    fields.push({ label: 'description', value: description });
+    fields.push({ label: 'description', value: description, fullValue: descriptionFull });
+  }
+  if (version) {
+    fields.push({ label: 'version', value: version });
+  }
+  if (model) {
+    fields.push({ label: 'model', value: model });
   }
   if (targets.length > 0) {
     fields.push({ label: 'targets', value: targets.join(', ') });
+  }
+  if (activation) {
+    fields.push({ label: 'activation', value: activation });
   }
   if (toolsCount > 0) {
     fields.push({ label: 'tools', value: `${toolsCount} tools` });
   }
 
   return fields;
+}
+
+const SINGULAR_TO_DISPLAY: Record<string, string> = {
+  'agent': 'AGENTS',
+  'skill': 'SKILLS',
+  'rule': 'RULES',
+  'workflow': 'WORKFLOWS',
+  'hooks': 'HOOKS',
+  'mcp': 'MCP SERVERS',
+  'context': 'CONTEXTS',
+  'settings': 'SETTINGS',
+  'memory': 'MEMORIES',
+  'blueprint': 'BLUEPRINTS',
+  'policy': 'POLICIES',
+  'global': 'GLOBALS',
+};
+
+const DISPLAY_TO_KIND: Record<string, string> = {
+  'AGENTS': 'agent',
+  'SKILLS': 'skill',
+  'RULES': 'rule',
+  'WORKFLOWS': 'workflow',
+  'HOOKS': 'hooks',
+  'MCP SERVERS': 'mcp',
+  'CONTEXTS': 'context',
+  'SETTINGS': 'settings',
+  'MEMORY': 'memory',
+  'MEMORIES': 'memory',
+  'BLUEPRINTS': 'blueprint',
+  'POLICIES': 'policy',
+  'GLOBALS': 'global',
+};
+
+function normalizeKind(displayKind: string): string {
+  return DISPLAY_TO_KIND[displayKind] || displayKind.toLowerCase().replace(/s$/, '');
 }
 
 export function parseListOutput(stdout: string): Map<string, ResourceInfo[]> {
@@ -146,7 +215,7 @@ export function parseListOutput(stdout: string): Map<string, ResourceInfo[]> {
   for (const line of stdout.split('\n')) {
     const sectionMatch = sectionRe.exec(line);
     if (sectionMatch) {
-      currentKind = sectionMatch[1];
+      currentKind = normalizeKind(sectionMatch[1]);
       grouped.set(currentKind, []);
       continue;
     }
@@ -175,6 +244,7 @@ export class ResourceTreeItem extends vscode.TreeItem {
       description?: string;
       xcafIndex?: XcafIndex;
       fileUri?: string;
+      tooltip?: string;
     },
   ) {
     super(label, collapsibleState);
@@ -184,7 +254,13 @@ export class ResourceTreeItem extends vscode.TreeItem {
     if (options?.description !== undefined) {
       this.description = options.description;
     }
-    this.tooltip = (this.description as string) || `${this.kind}: ${this.label}`;
+    if (options?.tooltip) {
+      this.tooltip = options.tooltip;
+    } else if (itemType === 'metadata-field' && options?.description !== undefined) {
+      this.tooltip = `${this.label}: ${options.description}`;
+    } else {
+      this.tooltip = (this.description as string) || `${this.kind}: ${this.label}`;
+    }
 
     if (options?.fileUri) {
       this.fileUri = options.fileUri;
@@ -194,12 +270,15 @@ export class ResourceTreeItem extends vscode.TreeItem {
       const entry = options.xcafIndex.resolve(this.kind, this.label);
       if (entry) {
         this.fileUri = this.fileUri ?? entry.fileUri;
+        this.resourceUri = vscode.Uri.file(entry.fileUri);
         this.command = {
           command: 'vscode.open',
           title: 'Open .xcaf File',
-          arguments: [vscode.Uri.file(entry.fileUri)],
+          arguments: [this.resourceUri],
         };
       }
+    } else if (this.fileUri) {
+      this.resourceUri = vscode.Uri.file(this.fileUri);
     }
   }
 }
@@ -252,8 +331,9 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
         const items: ResourceTreeItem[] = [];
         for (const kind of Array.from(grouped.keys()).sort()) {
           const list = grouped.get(kind)!;
+          const displayKind = SINGULAR_TO_DISPLAY[kind] || kind.toUpperCase() + 'S';
           items.push(new ResourceTreeItem(
-            `${kind} (${list.length})`,
+            `${displayKind} (${list.length})`,
             kind,
             vscode.TreeItemCollapsibleState.Collapsed,
             'kind-group',
@@ -293,20 +373,71 @@ export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTre
   private async getMetadataChildren(
     element: ResourceTreeItem,
   ): Promise<ResourceTreeItem[]> {
+    const items: ResourceTreeItem[] = [];
+
+    // 1. Extract metadata from main file
     try {
       const doc = await vscode.workspace.openTextDocument(
         vscode.Uri.file(element.fileUri!),
       );
       const fields = extractMetadataFields(doc.getText());
-      return fields.map(field => new ResourceTreeItem(
-        field.label,
-        element.kind,
-        vscode.TreeItemCollapsibleState.None,
-        'metadata-field',
-        { description: field.value },
-      ));
-    } catch {
-      return [];
-    }
+      for (const field of fields) {
+        items.push(new ResourceTreeItem(
+          field.label,
+          element.kind,
+          vscode.TreeItemCollapsibleState.None,
+          'metadata-field',
+          {
+            description: field.value,
+            tooltip: `${field.label}: ${field.fullValue || field.value}`,
+          },
+        ));
+      }
+    } catch { /* ignore read errors */ }
+
+    // 2. Scan parent directory for overrides and artifacts
+    const parentDir = path.dirname(element.fileUri!);
+    try {
+      const entries = await vscode.workspace.fs.readDirectory(
+        vscode.Uri.file(parentDir),
+      );
+      const mainBasename = path.basename(element.fileUri!);
+
+      // Find override files (*.xcaf files that aren't the main file)
+      const overrides = entries
+        .filter(([name, type]) =>
+          type === vscode.FileType.File &&
+          name.endsWith('.xcaf') &&
+          name !== mainBasename,
+        )
+        .map(([name]) => name);
+
+      if (overrides.length > 0) {
+        items.push(new ResourceTreeItem(
+          'overrides',
+          element.kind,
+          vscode.TreeItemCollapsibleState.None,
+          'metadata-field',
+          { description: overrides.join(', ') },
+        ));
+      }
+
+      // Find artifact directories (subdirectories like references/)
+      const dirs = entries
+        .filter(([, type]) => type === vscode.FileType.Directory)
+        .map(([name]) => name);
+
+      if (dirs.length > 0) {
+        items.push(new ResourceTreeItem(
+          'artifacts',
+          element.kind,
+          vscode.TreeItemCollapsibleState.None,
+          'metadata-field',
+          { description: dirs.join(', ') },
+        ));
+      }
+    } catch { /* ignore directory read errors */ }
+
+    return items;
   }
 }

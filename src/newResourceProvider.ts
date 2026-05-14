@@ -18,15 +18,44 @@ export interface VariantChoice {
 }
 
 /**
+ * KIND_PLURALS maps singular kind names to their plural directory forms.
+ * Kinds that are already plural or uncountable map to themselves.
+ */
+const KIND_PLURALS: Record<string, string> = {
+  agent: 'agents',
+  skill: 'skills',
+  rule: 'rules',
+  workflow: 'workflows',
+  hook: 'hooks',
+  hooks: 'hooks',
+  mcp: 'mcp',
+  context: 'context',
+  setting: 'settings',
+  settings: 'settings',
+  global: 'global',
+  policy: 'policies',
+  blueprint: 'blueprints',
+  project: 'project',
+};
+
+/**
+ * pluralizeKind returns the plural directory name for a given kind.
+ * Falls back to appending 's' for unknown kinds.
+ */
+export function pluralizeKind(kind: string): string {
+  return KIND_PLURALS[kind] || kind + 's';
+}
+
+/**
  * buildResourcePath returns the canonical file path for a new xcaf resource.
- * Layout: `<workspaceRoot>/xcaf/<kind>/<name>/<name>.xcaf`
+ * Layout: `<workspaceRoot>/xcaf/<kind-plural>/<name>/<kind>.xcaf`
  */
 export function buildResourcePath(
   workspaceRoot: string,
   kind: string,
   name: string,
 ): string {
-  return path.join(workspaceRoot, 'xcaf', kind, name, `${name}.xcaf`);
+  return path.join(workspaceRoot, 'xcaf', pluralizeKind(kind), name, `${kind}.xcaf`);
 }
 
 /**

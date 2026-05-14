@@ -16,6 +16,37 @@ import {
   GraphData,
 } from './webview/graphWebview';
 
+/** CSS class name for empty-state messages in the mini-graph panel. */
+const PLACEHOLDER_CLASS = 'placeholder';
+
+/**
+ * buildEmptyStateHtml generates styled placeholder HTML for when the mini-graph
+ * has no meaningful content to display. Optionally includes a "View full graph"
+ * link that posts a message to the extension host.
+ */
+export function buildEmptyStateHtml(
+  message: string,
+  showFullGraphLink: boolean,
+  nonce: string,
+): string {
+  const linkHtml = showFullGraphLink
+    ? `<br><a href="#" id="fullGraphLink" style="opacity:0.8; font-size:0.85em; color:var(--vscode-textLink-foreground, #4a9eff);">View full graph</a>`
+    : '';
+  const linkScript = showFullGraphLink
+    ? `<script nonce="${nonce}">
+      (function() {
+        var vscodeApi = acquireVsCodeApi();
+        document.getElementById('fullGraphLink').addEventListener('click', function(e) {
+          e.preventDefault();
+          vscodeApi.postMessage({ command: 'openFullGraph' });
+        });
+      })();
+    </script>`
+    : '';
+
+  return `<div class="${PLACEHOLDER_CLASS}">${escapeHtml(message)}${linkHtml}</div>${linkScript}`;
+}
+
 // -- Exported types and pure functions for testability -------------------
 
 /** Result of extracting a 1-hop neighborhood from the full graph. */
@@ -122,6 +153,24 @@ function buildMiniGraphBody(
   nonce: string,
   kindColorsJson: string,
 ): string {
+  // No data at all — show generic empty message
+  if (!data || !data.nodes || data.nodes.length === 0) {
+    return buildEmptyStateHtml(
+      'No dependency data available.',
+      false,
+      nonce,
+    );
+  }
+
+  // Center node exists but has no connections — show informative message
+  if (data.edges.length === 0) {
+    const parsed = parseNodeId(data.centerNodeId);
+    const label = parsed
+      ? `${parsed.name} has no dependencies.`
+      : 'No dependencies for this resource.';
+    return buildEmptyStateHtml(label, true, nonce);
+  }
+
   const dataJson = JSON.stringify(data);
 
   return `
@@ -134,15 +183,6 @@ function buildMiniGraphBody(
         var defaultColor = '#999999';
         var CENTER_RADIUS = 10;
         var NEIGHBOR_RADIUS = 6;
-
-        if (!data || !data.nodes || data.nodes.length === 0) {
-          document.getElementById('canvas').style.display = 'none';
-          var msg = document.createElement('div');
-          msg.className = 'placeholder';
-          msg.textContent = 'No dependency data available.';
-          document.body.appendChild(msg);
-          return;
-        }
 
         function colorFor(kind) {
           return kindColors[kind] || defaultColor;
@@ -338,6 +378,26 @@ export class MiniGraphProvider implements vscode.WebviewViewProvider {
     );
   }
 
+  /**
+   * renderMessage shows a styled message with an optional "View full graph" link.
+   * Used when the graph has no useful content to display (e.g., no edges, no data).
+   */
+  private renderMessage(
+    text: string,
+    showFullGraphLink: boolean,
+  ): void {
+    if (!this._view) {
+      return;
+    }
+    const nonce = generateNonce();
+    const csp = buildMiniGraphCsp(
+      this._view.webview.cspSource,
+      nonce,
+    );
+    const body = buildEmptyStateHtml(text, showFullGraphLink, nonce);
+    this._view.webview.html = this.buildHtml(csp, nonce, body);
+  }
+
   private async fetchNeighborhood(
     centerNodeId: string,
   ): Promise<MiniGraphData | null> {
@@ -387,7 +447,10 @@ export class MiniGraphProvider implements vscode.WebviewViewProvider {
       const neighborhood = await this.fetchNeighborhood(centerNodeId);
 
       if (!neighborhood) {
-        this.renderPlaceholder();
+        this.renderMessage(
+          'Run xcaffold apply to generate dependency data.',
+          false,
+        );
         return;
       }
 
@@ -488,6 +551,8 @@ export class MiniGraphProvider implements vscode.WebviewViewProvider {
   private handleMessage(message: { command: string; nodeId?: string }): void {
     if (message.command === 'openFile' && message.nodeId) {
       this.openNodeFile(message.nodeId);
+    } else if (message.command === 'openFullGraph') {
+      vscode.commands.executeCommand('xcaffold.graph');
     }
   }
 
