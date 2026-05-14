@@ -28,6 +28,7 @@ export class XcaffoldGraphProvider {
         dataSource,
         workspaceFolder,
         xcafIndex,
+        () => XcaffoldGraphProvider.reset(),
       );
     }
     XcaffoldGraphProvider.instance.show();

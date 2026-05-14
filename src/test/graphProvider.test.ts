@@ -4,6 +4,7 @@ import {
   KIND_COLORS,
   nodeRadius,
   kindColor,
+  parseNodeId,
 } from '../webview/graphWebview';
 
 suite('GraphProvider HTML', () => {
@@ -40,6 +41,23 @@ suite('GraphProvider HTML', () => {
     assert.ok(
       source.includes('asWebviewUri'),
       'graphWebview.ts must use webview.asWebviewUri() to load D3',
+    );
+  });
+
+  test('tooltip must use esc() for d.kind and d.label', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const source = fs.readFileSync(
+      path.join(__dirname, '..', 'webview', 'graphWebview.ts'),
+      'utf8',
+    );
+    assert.ok(
+      source.includes('esc(d.kind)'),
+      'tooltip must escape d.kind with esc()',
+    );
+    assert.ok(
+      source.includes('esc(d.label'),
+      'tooltip must escape d.label with esc()',
     );
   });
 });
@@ -143,5 +161,47 @@ suite('kindColor', () => {
   test('returns default gray for unknown kind', () => {
     assert.strictEqual(kindColor('unknown'), '#999999');
     assert.strictEqual(kindColor(''), '#999999');
+  });
+});
+
+suite('parseNodeId', () => {
+  test('splits "kind:name" into components', () => {
+    const result = parseNodeId('agent:my-agent');
+    assert.deepStrictEqual(result, {
+      kind: 'agent',
+      name: 'my-agent',
+    });
+  });
+
+  test('handles name with colons', () => {
+    const result = parseNodeId('rule:my:complex:name');
+    assert.deepStrictEqual(result, {
+      kind: 'rule',
+      name: 'my:complex:name',
+    });
+  });
+
+  test('returns undefined for empty string', () => {
+    assert.strictEqual(parseNodeId(''), undefined);
+  });
+
+  test('returns undefined for id without colon', () => {
+    assert.strictEqual(parseNodeId('nocolon'), undefined);
+  });
+
+  test('handles colon at start', () => {
+    const result = parseNodeId(':name-only');
+    assert.deepStrictEqual(result, {
+      kind: '',
+      name: 'name-only',
+    });
+  });
+
+  test('handles colon at end', () => {
+    const result = parseNodeId('kind:');
+    assert.deepStrictEqual(result, {
+      kind: 'kind',
+      name: '',
+    });
   });
 });

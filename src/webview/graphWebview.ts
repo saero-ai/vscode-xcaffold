@@ -83,6 +83,22 @@ export function kindColor(kind: string): string {
   return KIND_COLORS[kind] || DEFAULT_COLOR;
 }
 
+/**
+ * parseNodeId splits a "kind:name" node ID into its components.
+ * Returns undefined if the ID does not contain a colon separator.
+ */
+export function parseNodeId(
+  nodeId: string,
+): { kind: string; name: string } | undefined {
+  if (!nodeId) return undefined;
+  const sepIdx = nodeId.indexOf(':');
+  if (sepIdx === -1) return undefined;
+  return {
+    kind: nodeId.substring(0, sepIdx),
+    name: nodeId.substring(sepIdx + 1),
+  };
+}
+
 // -- Graph styles -----------------------------------------------------
 
 function graphStyles(): string {
@@ -246,6 +262,14 @@ function graphBody(
           return;
         }
 
+        function esc(str) {
+          return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        }
+
         var maxRef = 0;
         for (var k in refCounts) {
           if (refCounts[k] > maxRef) maxRef = refCounts[k];
@@ -339,12 +363,12 @@ function graphBody(
           var targets = targetCounts[d.id] || 0;
           tooltip.innerHTML =
             '<div class="tooltip-kind" style="color:' + colorFor(d.kind) + '">' +
-              d.kind +
+              esc(d.kind) +
             '</div>' +
-            '<div class="tooltip-label">' + (d.label || d.id) + '</div>' +
+            '<div class="tooltip-label">' + esc(d.label || d.id) + '</div>' +
             '<div class="tooltip-targets">' +
               refs + ' incoming ref' + (refs !== 1 ? 's' : '') +
-              ' &middot; ' +
+              ' · ' +
               targets + ' target' + (targets !== 1 ? 's' : '') +
             '</div>';
           tooltip.classList.add('visible');
@@ -467,13 +491,21 @@ function graphBody(
  * of xcaffold resource dependencies.
  */
 export class GraphWebview extends BaseWebview {
+  private readonly disposeCallback: (() => void) | undefined;
+
   constructor(
     extensionUri: vscode.Uri,
     dataSource: DataSource,
     workspaceFolder: string,
     private readonly xcafIndex: XcafIndex,
+    onDispose?: () => void,
   ) {
     super(extensionUri, dataSource, workspaceFolder);
+    this.disposeCallback = onDispose;
+  }
+
+  protected override onDidDispose(): void {
+    this.disposeCallback?.();
   }
 
   protected getViewType(): string {
@@ -565,15 +597,10 @@ export class GraphWebview extends BaseWebview {
   }
 
   private openNodeFile(nodeId: string): void {
-    if (!nodeId) return;
-    // Node IDs are formatted as "kind:name"
-    const sepIdx = nodeId.indexOf(':');
-    if (sepIdx === -1) return;
+    const parsed = parseNodeId(nodeId);
+    if (!parsed) return;
 
-    const kind = nodeId.substring(0, sepIdx);
-    const name = nodeId.substring(sepIdx + 1);
-
-    const entry = this.xcafIndex.resolve(kind, name);
+    const entry = this.xcafIndex.resolve(parsed.kind, parsed.name);
     if (entry) {
       const uri = vscode.Uri.file(entry.fileUri);
       vscode.window.showTextDocument(uri, {
