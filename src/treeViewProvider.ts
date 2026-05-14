@@ -1,15 +1,12 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { XcaffoldCli } from './xcaffoldCli';
-import { XcafIndex } from './xcafIndex';
+import { XcafProjectModel, XcafResource, kindToDisplayName } from './xcafProjectModel';
 
 export interface ResourceInfo {
   kind: string;
   name: string;
   description: string;
 }
-
-export type TreeItemType = 'kind-group' | 'resource-item' | 'metadata-field';
 
 export interface MetadataField {
   label: string;
@@ -231,213 +228,323 @@ export function parseListOutput(stdout: string): Map<string, ResourceInfo[]> {
   return grouped;
 }
 
-export class ResourceTreeItem extends vscode.TreeItem {
-  public readonly itemType: TreeItemType;
-  public readonly fileUri?: string;
+// ---------------------------------------------------------------------------
+// Object Explorer node types
+// ---------------------------------------------------------------------------
 
+export type ExplorerNodeType =
+  | 'kind-group'
+  | 'scope-group'
+  | 'resource'
+  | 'property'
+  | 'override'
+  | 'artifact-dir'
+  | 'artifact-file';
+
+export interface KindGroupData { type: 'kind-group'; kind: string; count: number }
+export interface ScopeGroupData { type: 'scope-group'; kind: string; scope: string; count: number }
+export interface ResourceData { type: 'resource'; kind: string; name: string; baseManifest: string; overrideCount: number }
+export interface PropertyData { type: 'property'; fieldLabel: string; value: string; fullValue?: string }
+export interface OverrideData { type: 'override'; provider: string; filePath: string }
+export interface ArtifactDirData { type: 'artifact-dir'; dirName: string; dirPath: string; files: string[] }
+export interface ArtifactFileData { type: 'artifact-file'; fileName: string; filePath: string }
+
+export type ExplorerNodeData =
+  | KindGroupData
+  | ScopeGroupData
+  | ResourceData
+  | PropertyData
+  | OverrideData
+  | ArtifactDirData
+  | ArtifactFileData;
+
+export class ExplorerNode extends vscode.TreeItem {
   constructor(
-    public readonly label: string,
-    public readonly kind: string,
-    public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-    itemType: TreeItemType,
-    options?: {
-      description?: string;
-      xcafIndex?: XcafIndex;
-      fileUri?: string;
-      tooltip?: string;
-    },
+    label: string,
+    public readonly nodeType: ExplorerNodeType,
+    collapsibleState: vscode.TreeItemCollapsibleState,
+    public readonly data: ExplorerNodeData,
   ) {
     super(label, collapsibleState);
-    this.itemType = itemType;
-    this.contextValue = itemType;
-
-    if (options?.description !== undefined) {
-      this.description = options.description;
-    }
-    if (options?.tooltip) {
-      this.tooltip = options.tooltip;
-    } else if (itemType === 'metadata-field' && options?.description !== undefined) {
-      this.tooltip = `${this.label}: ${options.description}`;
-    } else {
-      this.tooltip = (this.description as string) || `${this.kind}: ${this.label}`;
-    }
-
-    if (options?.fileUri) {
-      this.fileUri = options.fileUri;
-    }
-
-    if (itemType === 'resource-item' && options?.xcafIndex) {
-      const entry = options.xcafIndex.resolve(this.kind, this.label);
-      if (entry) {
-        this.fileUri = this.fileUri ?? entry.fileUri;
-        this.resourceUri = vscode.Uri.file(entry.fileUri);
-        this.command = {
-          command: 'vscode.open',
-          title: 'Open .xcaf File',
-          arguments: [this.resourceUri],
-        };
-      }
-    } else if (this.fileUri) {
-      this.resourceUri = vscode.Uri.file(this.fileUri);
-    }
+    this.contextValue = nodeType;
   }
 }
 
-export class XcaffoldTreeProvider implements vscode.TreeDataProvider<ResourceTreeItem> {
-  private _onDidChangeTreeData: vscode.EventEmitter<ResourceTreeItem | undefined | void> = new vscode.EventEmitter<ResourceTreeItem | undefined | void>();
-  readonly onDidChangeTreeData: vscode.Event<ResourceTreeItem | undefined | void> = this._onDidChangeTreeData.event;
+// ---------------------------------------------------------------------------
+// ObjectExplorerProvider
+// ---------------------------------------------------------------------------
+
+export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerNode> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<ExplorerNode | undefined | void>();
+  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+  private model: XcafProjectModel;
+  private cli?: { run(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> };
+  private workspaceFolder?: string;
+  private fallbackData?: Map<string, ResourceInfo[]>;
 
   constructor(
-    private cli: XcaffoldCli,
-    private xcafIndex?: XcafIndex,
-  ) {}
+    model: XcafProjectModel,
+    cli?: { run(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> },
+    workspaceFolder?: string,
+  ) {
+    this.model = model;
+    this.cli = cli;
+    this.workspaceFolder = workspaceFolder;
+  }
+
+  setModel(model: XcafProjectModel): void {
+    this.model = model;
+  }
 
   refresh(): void {
     this._onDidChangeTreeData.fire();
   }
 
-  getTreeItem(element: ResourceTreeItem): vscode.TreeItem {
+  getTreeItem(element: ExplorerNode): vscode.TreeItem {
     return element;
   }
 
-  async getChildren(element?: ResourceTreeItem): Promise<ResourceTreeItem[]> {
-    // Level 3: metadata children of a resource item
-    if (element?.itemType === 'resource-item' && element.fileUri) {
-      return this.getMetadataChildren(element);
+  async getChildren(element?: ExplorerNode): Promise<ExplorerNode[]> {
+    if (!element) {
+      return this._getRootChildren();
     }
 
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    if (!workspaceFolder) {
-      return [new ResourceTreeItem(
-        'No workspace folder open', 'error',
-        vscode.TreeItemCollapsibleState.None, 'metadata-field',
-      )];
+    if (element.data.type === 'kind-group') {
+      return this._getKindGroupChildren(element.data);
     }
 
+    if (element.data.type === 'scope-group') {
+      return this._getScopeGroupChildren(element.data);
+    }
+
+    if (element.data.type === 'resource') {
+      return this._getResourceChildren(element.data);
+    }
+
+    if (element.data.type === 'artifact-dir') {
+      return this._getArtifactFileChildren(element.data as ArtifactDirData);
+    }
+
+    return [];
+  }
+
+  private async _getRootChildren(): Promise<ExplorerNode[]> {
+    const kinds = this.model.getKinds();
+    if (kinds.length > 0) {
+      return kinds.map(kg => new ExplorerNode(
+        `${kg.displayName} (${kg.resources.length})`,
+        'kind-group',
+        vscode.TreeItemCollapsibleState.Collapsed,
+        { type: 'kind-group', kind: kg.kind, count: kg.resources.length },
+      ));
+    }
+
+    if (this.cli && this.workspaceFolder) {
+      return this._getCliFallbackChildren();
+    }
+
+    return [new ExplorerNode(
+      'No xcaffold project detected',
+      'property',
+      vscode.TreeItemCollapsibleState.None,
+      { type: 'property', fieldLabel: 'info', value: 'Create a project.xcaf or run xcaffold init' },
+    )];
+  }
+
+  private async _getCliFallbackChildren(): Promise<ExplorerNode[]> {
     try {
-      const result = await this.cli.run(['list'], workspaceFolder);
+      const result = await this.cli!.run(['list'], this.workspaceFolder!);
       const grouped = parseListOutput(result.stdout);
-
-      if (!element) {
-        // Level 1: list kind groups
-        if (grouped.size === 0) {
-          return [new ResourceTreeItem(
-            'No xcaffold project detected', 'info',
-            vscode.TreeItemCollapsibleState.None, 'metadata-field',
-            { description: 'Create a project.xcaf to get started.' },
-          )];
-        }
-
-        const items: ResourceTreeItem[] = [];
-        for (const kind of Array.from(grouped.keys()).sort()) {
-          const list = grouped.get(kind)!;
-          const displayKind = SINGULAR_TO_DISPLAY[kind] || kind.toUpperCase() + 'S';
-          items.push(new ResourceTreeItem(
-            `${displayKind} (${list.length})`,
-            kind,
-            vscode.TreeItemCollapsibleState.Collapsed,
-            'kind-group',
-          ));
-        }
-        return items;
-      } else if (element.itemType === 'kind-group') {
-        // Level 2: list resources within a kind
-        const resources = grouped.get(element.kind) || [];
-        return resources.map(res => {
-          const fileUri = this.xcafIndex?.resolve(element.kind, res.name)?.fileUri;
-          return new ResourceTreeItem(
-            res.name,
-            element.kind,
-            vscode.TreeItemCollapsibleState.Collapsed,
-            'resource-item',
-            {
-              description: res.description,
-              xcafIndex: this.xcafIndex,
-              fileUri,
-            },
-          );
-        });
+      if (grouped.size === 0) {
+        return [new ExplorerNode(
+          'No xcaffold project detected',
+          'property',
+          vscode.TreeItemCollapsibleState.None,
+          { type: 'property', fieldLabel: 'info', value: 'Create a project.xcaf or run xcaffold init' },
+        )];
       }
-
-      return [];
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return [new ResourceTreeItem(
-        'CLI Error: Check output channel', 'error',
-        vscode.TreeItemCollapsibleState.None, 'metadata-field',
-        { description: message },
+      this.fallbackData = grouped;
+      const nodes: ExplorerNode[] = [];
+      for (const [kind, resources] of Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))) {
+        const displayName = kindToDisplayName(kind);
+        nodes.push(new ExplorerNode(
+          `${displayName} (${resources.length})`,
+          'kind-group',
+          vscode.TreeItemCollapsibleState.Collapsed,
+          { type: 'kind-group', kind, count: resources.length },
+        ));
+      }
+      return nodes;
+    } catch {
+      return [new ExplorerNode(
+        'CLI Error',
+        'property',
+        vscode.TreeItemCollapsibleState.None,
+        { type: 'property', fieldLabel: 'error', value: 'Failed to run xcaffold list' },
       )];
     }
   }
 
-  private async getMetadataChildren(
-    element: ResourceTreeItem,
-  ): Promise<ResourceTreeItem[]> {
-    const items: ResourceTreeItem[] = [];
+  private _getKindGroupChildren(data: KindGroupData): ExplorerNode[] {
+    const resources = this.model.getResources(data.kind);
+    if (resources.length > 0) {
+      // Group scoped resources into scope-group nodes
+      const scoped = resources.filter(r => r.scope !== undefined);
+      const unscoped = resources.filter(r => r.scope === undefined);
 
-    // 1. Extract metadata from main file
-    try {
-      const doc = await vscode.workspace.openTextDocument(
-        vscode.Uri.file(element.fileUri!),
-      );
-      const fields = extractMetadataFields(doc.getText());
-      for (const field of fields) {
-        items.push(new ResourceTreeItem(
-          field.label,
-          element.kind,
-          vscode.TreeItemCollapsibleState.None,
-          'metadata-field',
-          {
-            description: field.value,
-            tooltip: `${field.label}: ${field.fullValue || field.value}`,
-          },
+      const children: ExplorerNode[] = [];
+
+      // Scope groups sorted alphabetically
+      const scopeMap = new Map<string, XcafResource[]>();
+      for (const r of scoped) {
+        const list = scopeMap.get(r.scope!) ?? [];
+        list.push(r);
+        scopeMap.set(r.scope!, list);
+      }
+      for (const [scope, scopeResources] of Array.from(scopeMap.entries()).sort((a, b) => a[0].localeCompare(b[0]))) {
+        children.push(new ExplorerNode(
+          `${scope}/ (${scopeResources.length})`,
+          'scope-group',
+          vscode.TreeItemCollapsibleState.Collapsed,
+          { type: 'scope-group', kind: data.kind, scope, count: scopeResources.length },
         ));
+      }
+
+      // Unscoped resources
+      for (const r of unscoped) {
+        children.push(this._makeResourceNode(r));
+      }
+
+      return children;
+    }
+    if (this.fallbackData) {
+      const cliResources = this.fallbackData.get(data.kind) ?? [];
+      return cliResources.map(r => new ExplorerNode(
+        r.name,
+        'resource',
+        vscode.TreeItemCollapsibleState.None,
+        { type: 'resource', kind: data.kind, name: r.name, baseManifest: '', overrideCount: 0 },
+      ));
+    }
+    return [];
+  }
+
+  private _getScopeGroupChildren(data: ScopeGroupData): ExplorerNode[] {
+    const resources = this.model.getResources(data.kind)
+      .filter(r => r.scope === data.scope);
+    return resources.map(r => this._makeResourceNode(r));
+  }
+
+  private _makeResourceNode(r: XcafResource): ExplorerNode {
+    const node = new ExplorerNode(
+      r.name,
+      'resource',
+      vscode.TreeItemCollapsibleState.Collapsed,
+      { type: 'resource', kind: r.kind, name: r.name, baseManifest: r.baseManifest, overrideCount: r.overrides.length },
+    );
+    node.resourceUri = vscode.Uri.file(r.baseManifest);
+    node.command = { command: 'vscode.open', title: 'Open', arguments: [vscode.Uri.file(r.baseManifest)] };
+    if (r.overrides.length > 0) {
+      node.description = `[${r.overrides.length}]`;
+    }
+    return node;
+  }
+
+  private async _getResourceChildren(data: ResourceData): Promise<ExplorerNode[]> {
+    const resource = this.model.getResource(data.kind, data.name);
+    if (!resource) {
+      return [];
+    }
+
+    const children: ExplorerNode[] = [];
+
+    // 1. Properties (inline)
+    try {
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(resource.baseManifest));
+      const fields = extractMetadataFields(doc.getText());
+      if (fields.length === 0) {
+        children.push(new ExplorerNode(
+          '(no properties)',
+          'property',
+          vscode.TreeItemCollapsibleState.None,
+          { type: 'property', fieldLabel: 'empty', value: '' },
+        ));
+      } else {
+        for (const f of fields) {
+          const node = new ExplorerNode(
+            f.label,
+            'property',
+            vscode.TreeItemCollapsibleState.None,
+            { type: 'property', fieldLabel: f.label, value: f.value, fullValue: f.fullValue },
+          );
+          node.description = f.value;
+          node.tooltip = `${f.label}: ${f.fullValue || f.value}`;
+          children.push(node);
+        }
       }
     } catch { /* ignore read errors */ }
 
-    // 2. Scan parent directory for overrides and artifacts
-    const parentDir = path.dirname(element.fileUri!);
-    try {
-      const entries = await vscode.workspace.fs.readDirectory(
-        vscode.Uri.file(parentDir),
+    // 2. Overrides (inline)
+    for (const o of resource.overrides) {
+      const node = new ExplorerNode(
+        o.provider,
+        'override',
+        vscode.TreeItemCollapsibleState.None,
+        { type: 'override', provider: o.provider, filePath: o.path },
       );
-      const mainBasename = path.basename(element.fileUri!);
+      node.resourceUri = vscode.Uri.file(o.path);
+      node.command = { command: 'vscode.open', title: 'Open', arguments: [vscode.Uri.file(o.path)] };
+      node.description = `${resource.kind}.${o.provider}.xcaf`;
+      children.push(node);
+    }
 
-      // Find override files (*.xcaf files that aren't the main file)
-      const overrides = entries
-        .filter(([name, type]) =>
-          type === vscode.FileType.File &&
-          name.endsWith('.xcaf') &&
-          name !== mainBasename,
-        )
-        .map(([name]) => name);
+    // 3. Artifact directories (inline)
+    for (const ad of resource.artifactDirs) {
+      const fileWord = ad.files.length === 1 ? 'file' : 'files';
+      children.push(new ExplorerNode(
+        `${ad.name}/ (${ad.files.length} ${fileWord})`,
+        'artifact-dir',
+        ad.files.length > 0
+          ? vscode.TreeItemCollapsibleState.Collapsed
+          : vscode.TreeItemCollapsibleState.None,
+        { type: 'artifact-dir', dirName: ad.name, dirPath: ad.path, files: ad.files },
+      ));
+    }
 
-      if (overrides.length > 0) {
-        items.push(new ResourceTreeItem(
-          'overrides',
-          element.kind,
-          vscode.TreeItemCollapsibleState.None,
-          'metadata-field',
-          { description: overrides.join(', ') },
-        ));
-      }
+    return children;
+  }
 
-      // Find artifact directories (subdirectories like references/)
-      const dirs = entries
-        .filter(([, type]) => type === vscode.FileType.Directory)
-        .map(([name]) => name);
+  private _getArtifactFileChildren(data: ArtifactDirData): ExplorerNode[] {
+    if (data.files.length === 0) {
+      return [];
+    }
+    return data.files.map(f => {
+      const filePath = path.join(data.dirPath, f);
+      const node = new ExplorerNode(
+        f,
+        'artifact-file',
+        vscode.TreeItemCollapsibleState.None,
+        { type: 'artifact-file', fileName: f, filePath },
+      );
+      node.resourceUri = vscode.Uri.file(filePath);
+      node.command = { command: 'vscode.open', title: 'Open', arguments: [vscode.Uri.file(filePath)] };
+      return node;
+    });
+  }
+}
 
-      if (dirs.length > 0) {
-        items.push(new ResourceTreeItem(
-          'artifacts',
-          element.kind,
-          vscode.TreeItemCollapsibleState.None,
-          'metadata-field',
-          { description: dirs.join(', ') },
-        ));
-      }
-    } catch { /* ignore directory read errors */ }
-
-    return items;
+// Compatibility shim — extension.ts still uses the old XcaffoldTreeProvider(cli, xcafIndex)
+// signature. This stub accepts the old arguments but internally uses an empty model.
+// Removed in a later task when extension.ts is rewired to use ObjectExplorerProvider directly.
+export class XcaffoldTreeProvider extends ObjectExplorerProvider {
+  constructor(
+    cliOrModel?: { run?(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> } | unknown,
+    _xcafIndex?: unknown,
+    workspaceFolder?: string,
+  ) {
+    const cli = cliOrModel && typeof (cliOrModel as any).run === 'function'
+      ? cliOrModel as { run(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> }
+      : undefined;
+    super(new XcafProjectModel([]), cli, workspaceFolder);
   }
 }

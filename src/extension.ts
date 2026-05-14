@@ -1,12 +1,14 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { XcaffoldCli } from './xcaffoldCli';
 import { registerDiagnosticProvider } from './diagnosticProvider';
 import { registerCommandProvider } from './commandProvider';
-import { XcaffoldTreeProvider } from './treeViewProvider';
+import { ObjectExplorerProvider } from './treeViewProvider';
 import { XcaffoldGraphProvider } from './graphProvider';
-import { disposeOutputChannel } from './outputChannel';
+import { disposeOutputChannel, getOutputChannel } from './outputChannel';
 import { checkMinimumVersion } from './versionCheck';
-import { XcafIndex, parseFrontmatter } from './xcafIndex';
+import { XcafIndex } from './xcafIndex';
+import { XcafProjectModel, FsAdapter } from './xcafProjectModel';
 import type { DataSource } from './webview/dataSource';
 import { StatusBarProvider } from './statusBarProvider';
 import { runInitWizard } from './initWizardProvider';
@@ -64,27 +66,15 @@ function promptIconTheme(context: vscode.ExtensionContext): void {
 }
 
 /**
- * buildXcafIndex scans all workspace .xcaf files and populates the index.
+ * createVscodeFsAdapter returns an FsAdapter backed by the VS Code workspace filesystem API.
  */
-async function buildXcafIndex(index: XcafIndex): Promise<void> {
-  index.clear();
-  const files = await vscode.workspace.findFiles('**/*.xcaf', '**/node_modules/**');
-  for (const file of files) {
-    try {
-      const doc = await vscode.workspace.openTextDocument(file);
-      const result = parseFrontmatter(doc.getText());
-      if (result) {
-        index.setEntry({
-          kind: result.kind.toLowerCase(),
-          name: result.name,
-          fileUri: file.fsPath,
-          nameLine: result.nameLine,
-        });
-      }
-    } catch {
-      // Skip unreadable files
-    }
-  }
+function createVscodeFsAdapter(): FsAdapter {
+  return {
+    readDirectory: async (dirPath: string) => {
+      const entries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(dirPath));
+      return entries.map(([name, type]) => [name, type] as [string, number]);
+    },
+  };
 }
 
 /**
@@ -147,12 +137,14 @@ function registerConfigChangeListener(context: vscode.ExtensionContext, cli: Xca
 function registerProviders(
   cli: XcaffoldCli,
   xcafIndex: XcafIndex,
+  model: XcafProjectModel,
+  workspaceFolderPath: string | undefined,
   context: vscode.ExtensionContext
-): { treeProvider: XcaffoldTreeProvider; diagnosticProvider: vscode.Disposable; commandProvider: vscode.Disposable; treeView: vscode.Disposable } {
+): { treeProvider: ObjectExplorerProvider; diagnosticProvider: vscode.Disposable; commandProvider: vscode.Disposable; treeView: vscode.Disposable } {
   const diagnosticProvider = registerDiagnosticProvider(cli);
   const commandProvider = registerCommandProvider(cli);
 
-  const treeProvider = new XcaffoldTreeProvider(cli, xcafIndex);
+  const treeProvider = new ObjectExplorerProvider(model, cli, workspaceFolderPath);
   const treeView = vscode.window.registerTreeDataProvider('xcaffoldExplorer', treeProvider);
 
   return { treeProvider, diagnosticProvider, commandProvider, treeView };
@@ -164,8 +156,8 @@ function registerProviders(
 function registerCommands(
   context: vscode.ExtensionContext,
   cli: XcaffoldCli,
-  treeProvider: XcaffoldTreeProvider,
-  scheduleIndexRefresh: () => void,
+  treeProvider: ObjectExplorerProvider,
+  scheduleModelRefresh: () => void,
   workspaceFolderPath: string | undefined,
   statusBar: StatusBarProvider,
   dataSource: DataSource,
@@ -173,7 +165,7 @@ function registerCommands(
 ): { refreshCommand: vscode.Disposable; graphCommand: vscode.Disposable; initWizardCommand: vscode.Disposable; importPickerCommand: vscode.Disposable; diffCommand: vscode.Disposable; fidelityCommand: vscode.Disposable; statusDashCommand: vscode.Disposable; schemaViewerCommand: vscode.Disposable } {
   const refreshCommand = vscode.commands.registerCommand('xcaffold.refreshExplorer', () => {
     treeProvider.refresh();
-    scheduleIndexRefresh();
+    scheduleModelRefresh();
 
     // Refresh status bar on explicit refresh
     if (workspaceFolderPath) {
@@ -328,9 +320,31 @@ export async function activate(
   // 2b. One-time icon theme prompt (non-blocking, fire-and-forget)
   promptIconTheme(context);
 
-  // 3. Initialize xcafIndex
+  // 3. Initialize xcafIndex backed by XcafProjectModel
   const xcafIndex = new XcafIndex();
-  await buildXcafIndex(xcafIndex);
+  const vscodeFs = createVscodeFsAdapter();
+  const xcafRoot = workspaceFolderPath ? path.join(workspaceFolderPath, 'xcaf') : undefined;
+
+  let model: XcafProjectModel;
+  if (xcafRoot) {
+    try {
+      model = await XcafProjectModel.scan(xcafRoot, vscodeFs);
+      const kinds = model.getKinds();
+      getOutputChannel().appendLine(`[xcaf-model] Scanned ${xcafRoot}: ${kinds.length} kinds, ${model.allEntries().length} resources`);
+      for (const kg of kinds) {
+        const scoped = kg.resources.filter(r => r.scope);
+        getOutputChannel().appendLine(`[xcaf-model]   ${kg.displayName}: ${kg.resources.length} resources (${scoped.length} scoped)`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      getOutputChannel().appendLine(`[xcaf-model] Scan FAILED: ${msg}`);
+      model = new XcafProjectModel([]);
+    }
+  } else {
+    getOutputChannel().appendLine('[xcaf-model] No workspace folder, skipping scan');
+    model = new XcafProjectModel([]);
+  }
+  xcafIndex.setModel(model);
 
   // 3b. Initialize schema cache (non-blocking)
   const schemaCache = new XcafSchemaCache((args, cwd) => cli.run(args, cwd));
@@ -340,13 +354,25 @@ export async function activate(
     });
   }
 
-  // 4. Set up debounced index refresh with timer disposal
+  // 4. Set up debounced model refresh with timer disposal
+  //    treeProvider is declared below (step 6) but captured by closure — OK at call time.
   let indexTimer: ReturnType<typeof setTimeout> | undefined;
-  const scheduleIndexRefresh = () => {
+  // eslint-disable-next-line prefer-const
+  let treeProvider: ObjectExplorerProvider;
+  const scheduleModelRefresh = () => {
     if (indexTimer) {
       clearTimeout(indexTimer);
     }
-    indexTimer = setTimeout(() => buildXcafIndex(xcafIndex), INDEX_DEBOUNCE_MS);
+    indexTimer = setTimeout(async () => {
+      if (xcafRoot) {
+        try {
+          const newModel = await XcafProjectModel.scan(xcafRoot, vscodeFs);
+          xcafIndex.setModel(newModel);
+          treeProvider.setModel(newModel);
+          treeProvider.refresh();
+        } catch { /* ignore scan errors */ }
+      }
+    }, INDEX_DEBOUNCE_MS);
   };
   context.subscriptions.push({
     dispose: () => {
@@ -357,10 +383,11 @@ export async function activate(
   });
 
   // 5. Set up file watchers
-  const { saveWatcher, deleteWatcher } = setupFileWatchers(scheduleIndexRefresh);
+  const { saveWatcher, deleteWatcher } = setupFileWatchers(scheduleModelRefresh);
 
   // 6. Register providers and status bar
-  const { treeProvider, diagnosticProvider, commandProvider, treeView } = registerProviders(cli, xcafIndex, context);
+  const { treeProvider: tp, diagnosticProvider, commandProvider, treeView } = registerProviders(cli, xcafIndex, model, workspaceFolderPath, context);
+  treeProvider = tp;
   const statusBar = new StatusBarProvider();
   initStatusBar(cli, workspaceFolderPath || '', statusBar);
 
@@ -477,7 +504,7 @@ export async function activate(
   }
 
   // 8. Register custom commands
-  const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, fidelityCommand, statusDashCommand, schemaViewerCommand } = registerCommands(context, cli, treeProvider, scheduleIndexRefresh, workspaceFolderPath, statusBar, dataSource, xcafIndex);
+  const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, fidelityCommand, statusDashCommand, schemaViewerCommand } = registerCommands(context, cli, treeProvider, scheduleModelRefresh, workspaceFolderPath, statusBar, dataSource, xcafIndex);
 
   // 8b. Register New Resource wizard (replaces the stub in commandProvider)
   const newResourceCommand = vscode.commands.registerCommand(

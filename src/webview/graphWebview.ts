@@ -292,6 +292,11 @@ function graphBody(
           return kindColors[kind] || defaultColor;
         }
 
+        // Map edges from {from, to} to {source, target} for D3 forceLink
+        var links = data.edges.map(function(e) {
+          return { source: e.from, target: e.to, label: e.label };
+        });
+
         // Build lookup for outgoing edge counts (targets)
         var targetCounts = {};
         data.edges.forEach(function(e) {
@@ -328,7 +333,7 @@ function graphBody(
 
         // Force simulation
         var simulation = d3.forceSimulation(data.nodes)
-          .force('link', d3.forceLink(data.edges)
+          .force('link', d3.forceLink(links)
             .id(function(d) { return d.id; })
             .distance(120))
           .force('charge', d3.forceManyBody().strength(-400))
@@ -340,7 +345,7 @@ function graphBody(
         // Links
         var link = container.append('g')
           .selectAll('line')
-          .data(data.edges)
+          .data(links)
           .join('line')
           .attr('class', 'link');
 

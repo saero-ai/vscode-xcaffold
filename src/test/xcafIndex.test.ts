@@ -1,5 +1,6 @@
 import * as assert from 'assert';
 import { XcafIndex, XcafEntry, parseFrontmatter } from '../xcafIndex';
+import { XcafProjectModel, XcafKindGroup } from '../xcafProjectModel';
 
 suite('XcafIndex', () => {
   suite('parseFrontmatter', () => {
@@ -163,6 +164,110 @@ suite('XcafIndex', () => {
 
       const result = index.resolve('agent', 'reviewer');
       assert.strictEqual(result, undefined);
+    });
+  });
+
+  suite('XcafIndex with model', () => {
+    function makeModel(): XcafProjectModel {
+      const groups: XcafKindGroup[] = [
+        {
+          kind: 'agent',
+          displayName: 'AGENTS',
+          resources: [
+            {
+              name: 'auth-specialist',
+              kind: 'agent',
+              baseManifest: '/workspace/xcaf/agents/auth-specialist/agent.xcaf',
+              overrides: [],
+              artifactDirs: [],
+            },
+          ],
+        },
+        {
+          kind: 'skill',
+          displayName: 'SKILLS',
+          resources: [
+            {
+              name: 'brainstorming',
+              kind: 'skill',
+              baseManifest: '/workspace/xcaf/skills/brainstorming/skill.xcaf',
+              overrides: [],
+              artifactDirs: [],
+            },
+          ],
+        },
+      ];
+      return new XcafProjectModel(groups);
+    }
+
+    test('resolve delegates to model after setModel', () => {
+      const index = new XcafIndex();
+      index.setModel(makeModel());
+
+      const result = index.resolve('agent', 'auth-specialist');
+      assert.ok(result);
+      assert.strictEqual(result!.kind, 'agent');
+      assert.strictEqual(result!.name, 'auth-specialist');
+      assert.strictEqual(result!.fileUri, '/workspace/xcaf/agents/auth-specialist/agent.xcaf');
+    });
+
+    test('resolveByName delegates to model after setModel', () => {
+      const index = new XcafIndex();
+      index.setModel(makeModel());
+
+      const result = index.resolveByName('brainstorming');
+      assert.ok(result);
+      assert.strictEqual(result!.kind, 'skill');
+      assert.strictEqual(result!.name, 'brainstorming');
+    });
+
+    test('allEntries delegates to model after setModel', () => {
+      const index = new XcafIndex();
+      index.setModel(makeModel());
+
+      const entries = index.allEntries();
+      assert.strictEqual(entries.length, 2);
+      const names = entries.map(e => e.name).sort();
+      assert.deepStrictEqual(names, ['auth-specialist', 'brainstorming']);
+    });
+
+    test('setEntry is a no-op in model mode', () => {
+      const index = new XcafIndex();
+      index.setModel(makeModel());
+
+      // Try to add an entry — it should not appear in allEntries
+      index.setEntry({
+        kind: 'rule',
+        name: 'new-rule',
+        fileUri: '/workspace/xcaf/rules/new-rule/rule.xcaf',
+        nameLine: 1,
+      });
+
+      const entries = index.allEntries();
+      assert.strictEqual(entries.length, 2, 'setEntry should be no-op in model mode');
+      const found = entries.find(e => e.name === 'new-rule');
+      assert.strictEqual(found, undefined);
+    });
+
+    test('removeByUri is a no-op in model mode', () => {
+      const index = new XcafIndex();
+      index.setModel(makeModel());
+
+      index.removeByUri('/workspace/xcaf/agents/auth-specialist/agent.xcaf');
+
+      // Model entries should still be there
+      const result = index.resolve('agent', 'auth-specialist');
+      assert.ok(result, 'removeByUri should be no-op in model mode');
+    });
+
+    test('clear is a no-op in model mode', () => {
+      const index = new XcafIndex();
+      index.setModel(makeModel());
+
+      index.clear();
+
+      const entries = index.allEntries();
+      assert.strictEqual(entries.length, 2, 'clear should be no-op in model mode');
     });
   });
 });
