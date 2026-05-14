@@ -973,4 +973,102 @@ suite('ObjectExplorerProvider', () => {
     const coderNode = resources.find(r => r.label === 'coder') as ExplorerNode;
     assert.strictEqual(coderNode.contextValue, 'resource');
   });
+
+  // ---------------------------------------------------------------------------
+  // CLI fallback tests
+  // ---------------------------------------------------------------------------
+
+  test('CLI fallback when model is empty: kind-group nodes appear from CLI output', async () => {
+    const stdout = [
+      'my-project  .  2 agents  .  1 skill',
+      '',
+      'AGENTS  (2)',
+      '  coder',
+      '  reviewer',
+      '',
+      'SKILLS  (1)',
+      '  audit',
+    ].join('\n');
+
+    const mockCli = {
+      run: async (_args: string[], _cwd: string) => ({ stdout, stderr: '' }),
+    };
+
+    const provider = new ObjectExplorerProvider(makeModel([]), mockCli, '/workspace');
+    const roots = await provider.getChildren();
+
+    assert.ok(roots.length >= 2, 'should have kind-group nodes from CLI output');
+    const labels = roots.map(r => r.label as string);
+    assert.ok(labels.some(l => l.startsWith('AGENTS')), 'should have AGENTS group');
+    assert.ok(labels.some(l => l.startsWith('SKILLS')), 'should have SKILLS group');
+    roots.forEach(r => {
+      assert.strictEqual((r as ExplorerNode).nodeType, 'kind-group');
+    });
+  });
+
+  test('CLI fallback kind-group expansion shows simple resources with no children', async () => {
+    const stdout = [
+      'AGENTS  (2)',
+      '  coder',
+      '  reviewer',
+    ].join('\n');
+
+    const mockCli = {
+      run: async (_args: string[], _cwd: string) => ({ stdout, stderr: '' }),
+    };
+
+    const provider = new ObjectExplorerProvider(makeModel([]), mockCli, '/workspace');
+    const roots = await provider.getChildren();
+
+    const agentsNode = roots.find(r => (r.label as string).startsWith('AGENTS')) as ExplorerNode;
+    assert.ok(agentsNode, 'should have AGENTS group');
+
+    const resources = await provider.getChildren(agentsNode);
+    assert.strictEqual(resources.length, 2, 'should return 2 resource nodes');
+
+    const names = resources.map(r => r.label as string);
+    assert.ok(names.includes('coder'));
+    assert.ok(names.includes('reviewer'));
+
+    resources.forEach(r => {
+      assert.strictEqual(
+        (r as ExplorerNode).collapsibleState,
+        vscode.TreeItemCollapsibleState.None,
+        'fallback resources should not be expandable',
+      );
+    });
+  });
+
+  test('CLI fallback returns error node when CLI throws', async () => {
+    const mockCli = {
+      run: async (_args: string[], _cwd: string): Promise<{ stdout: string; stderr: string }> => {
+        throw new Error('xcaffold not found');
+      },
+    };
+
+    const provider = new ObjectExplorerProvider(makeModel([]), mockCli, '/workspace');
+    const roots = await provider.getChildren();
+
+    assert.strictEqual(roots.length, 1, 'should return exactly one error node');
+    assert.ok((roots[0].label as string).includes('CLI Error'), 'error node label should include "CLI Error"');
+  });
+
+  test('model-driven mode takes priority over CLI: CLI not called when model has data', async () => {
+    let cliCalled = false;
+    const mockCli = {
+      run: async (_args: string[], _cwd: string) => {
+        cliCalled = true;
+        return { stdout: '', stderr: '' };
+      },
+    };
+
+    const provider = new ObjectExplorerProvider(makeModel(makeGroups()), mockCli, '/workspace');
+    const roots = await provider.getChildren();
+
+    assert.strictEqual(cliCalled, false, 'CLI should not be called when model has data');
+    assert.strictEqual(roots.length, 3, 'should return model-driven kind groups');
+    roots.forEach(r => {
+      assert.strictEqual((r as ExplorerNode).nodeType, 'kind-group');
+    });
+  });
 });

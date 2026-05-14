@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { XcafProjectModel, XcafResource } from './xcafProjectModel';
+import { XcafProjectModel, XcafResource, kindToDisplayName } from './xcafProjectModel';
 
 export interface ResourceInfo {
   kind: string;
@@ -278,9 +278,18 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
   private _onDidChangeTreeData = new vscode.EventEmitter<ExplorerNode | undefined | void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
   private model: XcafProjectModel;
+  private cli?: { run(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> };
+  private workspaceFolder?: string;
+  private fallbackData?: Map<string, ResourceInfo[]>;
 
-  constructor(model: XcafProjectModel) {
+  constructor(
+    model: XcafProjectModel,
+    cli?: { run(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> },
+    workspaceFolder?: string,
+  ) {
     this.model = model;
+    this.cli = cli;
+    this.workspaceFolder = workspaceFolder;
   }
 
   setModel(model: XcafProjectModel): void {
@@ -299,6 +308,7 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
     if (!element) {
       return this._getRootChildren();
     }
+
 
     if (element.data.type === 'kind-group') {
       return this._getResourceChildren(element.data);
@@ -327,27 +337,78 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
     return [];
   }
 
-  private _getRootChildren(): ExplorerNode[] {
+  private async _getRootChildren(): Promise<ExplorerNode[]> {
     const kinds = this.model.getKinds();
-    if (kinds.length === 0) {
+    if (kinds.length > 0) {
+      return kinds.map(kg => new ExplorerNode(
+        `${kg.displayName} (${kg.resources.length})`,
+        'kind-group',
+        vscode.TreeItemCollapsibleState.Collapsed,
+        { type: 'kind-group', kind: kg.kind, count: kg.resources.length },
+      ));
+    }
+
+    if (this.cli && this.workspaceFolder) {
+      return this._getCliFallbackChildren();
+    }
+
+    return [new ExplorerNode(
+      'No xcaffold project detected',
+      'property',
+      vscode.TreeItemCollapsibleState.None,
+      { type: 'property', fieldLabel: 'info', value: 'Create a project.xcaf or run xcaffold init' },
+    )];
+  }
+
+  private async _getCliFallbackChildren(): Promise<ExplorerNode[]> {
+    try {
+      const result = await this.cli!.run(['list'], this.workspaceFolder!);
+      const grouped = parseListOutput(result.stdout);
+      if (grouped.size === 0) {
+        return [new ExplorerNode(
+          'No xcaffold project detected',
+          'property',
+          vscode.TreeItemCollapsibleState.None,
+          { type: 'property', fieldLabel: 'info', value: 'Create a project.xcaf or run xcaffold init' },
+        )];
+      }
+      this.fallbackData = grouped;
+      const nodes: ExplorerNode[] = [];
+      for (const [kind, resources] of Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))) {
+        const displayName = kindToDisplayName(kind);
+        nodes.push(new ExplorerNode(
+          `${displayName} (${resources.length})`,
+          'kind-group',
+          vscode.TreeItemCollapsibleState.Collapsed,
+          { type: 'kind-group', kind, count: resources.length },
+        ));
+      }
+      return nodes;
+    } catch {
       return [new ExplorerNode(
-        'No xcaffold project detected',
+        'CLI Error',
         'property',
         vscode.TreeItemCollapsibleState.None,
-        { type: 'property', fieldLabel: 'info', value: 'Create a project.xcaf or run xcaffold init' },
+        { type: 'property', fieldLabel: 'error', value: 'Failed to run xcaffold list' },
       )];
     }
-    return kinds.map(kg => new ExplorerNode(
-      `${kg.displayName} (${kg.resources.length})`,
-      'kind-group',
-      vscode.TreeItemCollapsibleState.Collapsed,
-      { type: 'kind-group', kind: kg.kind, count: kg.resources.length },
-    ));
   }
 
   private _getResourceChildren(data: KindGroupData): ExplorerNode[] {
     const resources = this.model.getResources(data.kind);
-    return resources.map(r => this._makeResourceNode(r));
+    if (resources.length > 0) {
+      return resources.map(r => this._makeResourceNode(r));
+    }
+    if (this.fallbackData) {
+      const cliResources = this.fallbackData.get(data.kind) ?? [];
+      return cliResources.map(r => new ExplorerNode(
+        r.name,
+        'resource',
+        vscode.TreeItemCollapsibleState.None,
+        { type: 'resource', kind: data.kind, name: r.name, baseManifest: '', overrideCount: 0 },
+      ));
+    }
+    return [];
   }
 
   private _makeResourceNode(r: XcafResource): ExplorerNode {
@@ -495,7 +556,14 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
 // signature. This stub accepts the old arguments but internally uses an empty model.
 // Removed in a later task when extension.ts is rewired to use ObjectExplorerProvider directly.
 export class XcaffoldTreeProvider extends ObjectExplorerProvider {
-  constructor(_cliOrModel: unknown, _xcafIndex?: unknown) {
-    super(new XcafProjectModel([]));
+  constructor(
+    cliOrModel?: { run?(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> } | unknown,
+    _xcafIndex?: unknown,
+    workspaceFolder?: string,
+  ) {
+    const cli = cliOrModel && typeof (cliOrModel as any).run === 'function'
+      ? cliOrModel as { run(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> }
+      : undefined;
+    super(new XcafProjectModel([]), cli, workspaceFolder);
   }
 }
