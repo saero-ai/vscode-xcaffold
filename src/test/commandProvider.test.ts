@@ -91,27 +91,27 @@ suite('Tree context menu commands', () => {
     }
   });
 
-  test('openResource menu item targets resource-item in navigation group', () => {
+  test('openResource menu item targets resource, override, and artifact-file nodes', () => {
     const items = pkg.contributes.menus['view/item/context'];
     const entry = items.find((m) => m.command === 'xcaffold.openResource');
     assert.ok(entry, 'openResource menu entry missing');
-    assert.strictEqual(entry.when, 'viewItem == resource-item');
+    assert.strictEqual(entry.when, 'viewItem == resource || viewItem == override || viewItem == artifact-file');
     assert.strictEqual(entry.group, 'navigation@1');
   });
 
-  test('findReferences menu item targets resource-item', () => {
+  test('findReferences menu item targets resource', () => {
     const items = pkg.contributes.menus['view/item/context'];
     const entry = items.find((m) => m.command === 'xcaffold.findReferences');
     assert.ok(entry, 'findReferences menu entry missing');
-    assert.strictEqual(entry.when, 'viewItem == resource-item');
+    assert.strictEqual(entry.when, 'viewItem == resource');
     assert.strictEqual(entry.group, 'xcaffold@3');
   });
 
-  test('deleteResource menu item targets resource-item with high group number', () => {
+  test('deleteResource menu item targets resource with high group number', () => {
     const items = pkg.contributes.menus['view/item/context'];
     const entry = items.find((m) => m.command === 'xcaffold.deleteResource');
     assert.ok(entry, 'deleteResource menu entry missing');
-    assert.strictEqual(entry.when, 'viewItem == resource-item');
+    assert.strictEqual(entry.when, 'viewItem == resource');
     assert.strictEqual(entry.group, 'xcaffold@9');
   });
 
@@ -123,16 +123,12 @@ suite('Tree context menu commands', () => {
     assert.strictEqual(entry.group, 'navigation@1');
   });
 
-  test('resource-item context menu has correct ordering', () => {
+  test('resource context menu has correct ordering', () => {
     const items = pkg.contributes.menus['view/item/context'];
     const resourceItems = items.filter(
-      (m) => m.when === 'viewItem == resource-item',
+      (m) => m.when === 'viewItem == resource',
     );
     const groups = resourceItems.map((m) => m.group);
-    assert.ok(
-      groups.includes('navigation@1'),
-      'Open File should be in navigation group',
-    );
     assert.ok(
       groups.includes('xcaffold@9'),
       'Delete should have high group number',

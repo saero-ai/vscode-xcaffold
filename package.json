@@ -202,27 +202,27 @@
       "view/item/context": [
         {
           "command": "xcaffold.openResource",
-          "when": "viewItem == resource-item",
+          "when": "viewItem == resource || viewItem == override || viewItem == artifact-file",
           "group": "navigation@1"
         },
         {
           "command": "xcaffold.validate",
-          "when": "viewItem == resource-item",
+          "when": "viewItem == resource",
           "group": "xcaffold@1"
         },
         {
           "command": "xcaffold.apply",
-          "when": "viewItem == resource-item",
+          "when": "viewItem == resource",
           "group": "xcaffold@2"
         },
         {
           "command": "xcaffold.findReferences",
-          "when": "viewItem == resource-item",
+          "when": "viewItem == resource",
           "group": "xcaffold@3"
         },
         {
           "command": "xcaffold.deleteResource",
-          "when": "viewItem == resource-item",
+          "when": "viewItem == resource",
           "group": "xcaffold@9"
         },
         {
