@@ -11,6 +11,58 @@ import { DataSource } from './webview/dataSource';
 /** Debounce interval for auto-refresh on .xcaf save (ms). */
 const REFRESH_DEBOUNCE_MS = 2000;
 
+/** CSS custom properties mapping VS Code theme variables. */
+const SIDEBAR_CSS_VARIABLES = `:root {
+  --bg: var(--vscode-editor-background);
+  --fg: var(--vscode-editor-foreground);
+  --border: var(--vscode-panel-border, #333);
+  --accent: var(--vscode-focusBorder, #007acc);
+  --btn-bg: var(--vscode-button-background, #0e639c);
+  --btn-fg: var(--vscode-button-foreground, #fff);
+  --btn-hover: var(--vscode-button-hoverBackground, #1177bb);
+  --success: #4caf50;
+  --warning: #ff9800;
+  --error: #f44336;
+  --badge-bg: var(--vscode-badge-background, #4d4d4d);
+  --badge-fg: var(--vscode-badge-foreground, #fff);
+}`;
+
+/** CSS rules for the sidebar dashboard layout. */
+const SIDEBAR_CSS_RULES = `* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  padding: 8px 12px; line-height: 1.4;
+}
+h2 { font-size: 1.1em; margin-bottom: 2px; }
+h3 { font-size: 0.95em; margin-bottom: 4px; opacity: 0.8; }
+.section { margin-bottom: 12px; }
+.meta { font-size: 0.85em; opacity: 0.7; }
+.muted { font-size: 0.85em; opacity: 0.5; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+th, td { padding: 3px 6px; text-align: left; border-bottom: 1px solid var(--border); }
+th { font-weight: 600; font-size: 0.85em; opacity: 0.7; }
+.badge {
+  display: inline-block; padding: 1px 6px;
+  border-radius: 8px; font-size: 0.8em; font-weight: 600;
+}
+.badge-green { background: var(--success); color: #fff; }
+.badge-yellow { background: var(--warning); color: #000; }
+.badge-red { background: var(--error); color: #fff; }
+.status-ok { color: var(--success); }
+.status-warn { color: var(--warning); }
+.actions { display: flex; gap: 6px; margin-top: 8px; }
+button {
+  background: var(--btn-bg); color: var(--btn-fg);
+  border: none; padding: 4px 10px; border-radius: 2px;
+  cursor: pointer; font-size: 0.85em; flex: 1;
+}
+button:hover { background: var(--btn-hover); }
+.loading { text-align: center; padding: 20px; opacity: 0.6; }
+.error { color: var(--error); padding: 8px; font-size: 0.9em; }`;
+
+
 /** Parsed result from `xcaffold status` tabular output. */
 export interface StatusInfo {
   projectName: string;
@@ -245,73 +297,14 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async buildBody(nonce: string): Promise<string> {
-    // Fetch status
-    let statusInfo: StatusInfo;
-    try {
-      const statusResult = await this.dataSource.fetch(
-        ['status'],
-        this.workspaceFolder,
-      );
-      statusInfo = parseStatusOutput(statusResult.stdout);
-    } catch {
-      statusInfo = {
-        projectName: '',
-        lastApplied: '',
-        providers: [],
-      };
-    }
+    const statusInfo = await this.fetchStatusInfo();
+    const validateSummary = await this.fetchValidateSummary();
 
-    // Fetch validation summary
-    let validateSummary: ValidateSummary;
-    try {
-      const validateResult = await this.dataSource.fetch(
-        ['validate'],
-        this.workspaceFolder,
-      );
-      validateSummary = parseValidateSummary(validateResult.stdout);
-    } catch {
-      validateSummary = { errors: 0, warnings: 0 };
-    }
-
-    // Project name fallback
     const projectName = statusInfo.projectName || 'xcaffold project';
-
-    // Last applied display
     const lastApplied = statusInfo.lastApplied || 'unknown';
 
-    // Validation badge
-    let validationBadge: string;
-    if (validateSummary.errors > 0) {
-      validationBadge =
-        `<span class="badge badge-red">${validateSummary.errors} error${validateSummary.errors > 1 ? 's' : ''}</span>`;
-    } else if (validateSummary.warnings > 0) {
-      validationBadge =
-        `<span class="badge badge-yellow">${validateSummary.warnings} warning${validateSummary.warnings > 1 ? 's' : ''}</span>`;
-    } else {
-      validationBadge = '<span class="badge badge-green">clean</span>';
-    }
-
-    // Provider rows
-    const providerRows = statusInfo.providers
-      .map((p) => {
-        const statusClass = p.status.includes('ok')
-          ? 'status-ok'
-          : 'status-warn';
-        return `<tr>
-          <td>${escapeHtml(p.name)}</td>
-          <td>${p.files}</td>
-          <td class="${statusClass}">${escapeHtml(p.status)}</td>
-        </tr>`;
-      })
-      .join('\n');
-
-    const providerTable =
-      statusInfo.providers.length > 0
-        ? `<table>
-            <thead><tr><th>Provider</th><th>Files</th><th>Status</th></tr></thead>
-            <tbody>${providerRows}</tbody>
-          </table>`
-        : '<p class="muted">No providers configured</p>';
+    const validationBadge = this.buildValidationBadge(validateSummary);
+    const providerTable = this.buildProviderTable(statusInfo.providers);
 
     return `
       <div class="section">
@@ -343,7 +336,32 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
     `;
   }
 
+  private async fetchStatusInfo(): Promise<StatusInfo> {
+    try {
+      const result = await this.dataSource.fetch(
+        ['status'],
+        this.workspaceFolder,
+      );
+      return parseStatusOutput(result.stdout);
+    } catch {
+      return { projectName: '', lastApplied: '', providers: [] };
+    }
+  }
+
+  private async fetchValidateSummary(): Promise<ValidateSummary> {
+    try {
+      const result = await this.dataSource.fetch(
+        ['validate'],
+        this.workspaceFolder,
+      );
+      return parseValidateSummary(result.stdout);
+    } catch {
+      return { errors: 0, warnings: 0 };
+    }
+  }
+
   private buildHtml(csp: string, nonce: string, body: string): string {
+    const styles = this.sidebarStyles(nonce);
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -351,74 +369,53 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="${csp}">
     <title>Status</title>
-    <style nonce="${nonce}">
-      :root {
-        --bg: var(--vscode-editor-background);
-        --fg: var(--vscode-editor-foreground);
-        --border: var(--vscode-panel-border, #333);
-        --accent: var(--vscode-focusBorder, #007acc);
-        --btn-bg: var(--vscode-button-background, #0e639c);
-        --btn-fg: var(--vscode-button-foreground, #fff);
-        --btn-hover: var(--vscode-button-hoverBackground, #1177bb);
-        --success: #4caf50;
-        --warning: #ff9800;
-        --error: #f44336;
-        --badge-bg: var(--vscode-badge-background, #4d4d4d);
-        --badge-fg: var(--vscode-badge-foreground, #fff);
-      }
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-      body {
-        background: var(--bg);
-        color: var(--fg);
-        font-family: var(--vscode-font-family, sans-serif);
-        font-size: var(--vscode-font-size, 13px);
-        padding: 8px 12px;
-        line-height: 1.4;
-      }
-      h2 { font-size: 1.1em; margin-bottom: 2px; }
-      h3 { font-size: 0.95em; margin-bottom: 4px; opacity: 0.8; }
-      .section { margin-bottom: 12px; }
-      .meta { font-size: 0.85em; opacity: 0.7; }
-      .muted { font-size: 0.85em; opacity: 0.5; }
-      table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
-      th, td { padding: 3px 6px; text-align: left; border-bottom: 1px solid var(--border); }
-      th { font-weight: 600; font-size: 0.85em; opacity: 0.7; }
-      .badge {
-        display: inline-block;
-        padding: 1px 6px;
-        border-radius: 8px;
-        font-size: 0.8em;
-        font-weight: 600;
-      }
-      .badge-green { background: var(--success); color: #fff; }
-      .badge-yellow { background: var(--warning); color: #000; }
-      .badge-red { background: var(--error); color: #fff; }
-      .status-ok { color: var(--success); }
-      .status-warn { color: var(--warning); }
-      .actions {
-        display: flex;
-        gap: 6px;
-        margin-top: 8px;
-      }
-      button {
-        background: var(--btn-bg);
-        color: var(--btn-fg);
-        border: none;
-        padding: 4px 10px;
-        border-radius: 2px;
-        cursor: pointer;
-        font-size: 0.85em;
-        flex: 1;
-      }
-      button:hover { background: var(--btn-hover); }
-      .loading { text-align: center; padding: 20px; opacity: 0.6; }
-      .error { color: var(--error); padding: 8px; font-size: 0.9em; }
-    </style>
+    ${styles}
 </head>
 <body>
     ${body}
 </body>
 </html>`;
+  }
+
+  private buildValidationBadge(summary: ValidateSummary): string {
+    if (summary.errors > 0) {
+      const plural = summary.errors > 1 ? 's' : '';
+      return `<span class="badge badge-red">${summary.errors} error${plural}</span>`;
+    }
+    if (summary.warnings > 0) {
+      const plural = summary.warnings > 1 ? 's' : '';
+      return `<span class="badge badge-yellow">${summary.warnings} warning${plural}</span>`;
+    }
+    return '<span class="badge badge-green">clean</span>';
+  }
+
+  private buildProviderTable(providers: ProviderRow[]): string {
+    if (providers.length === 0) {
+      return '<p class="muted">No providers configured</p>';
+    }
+
+    const rows = providers
+      .map((p) => {
+        const cls = p.status.includes('ok') ? 'status-ok' : 'status-warn';
+        return `<tr>
+          <td>${escapeHtml(p.name)}</td>
+          <td>${p.files}</td>
+          <td class="${cls}">${escapeHtml(p.status)}</td>
+        </tr>`;
+      })
+      .join('\n');
+
+    return `<table>
+            <thead><tr><th>Provider</th><th>Files</th><th>Status</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+  }
+
+  private sidebarStyles(nonce: string): string {
+    return `<style nonce="${nonce}">
+      ${SIDEBAR_CSS_VARIABLES}
+      ${SIDEBAR_CSS_RULES}
+    </style>`;
   }
 
   private handleMessage(message: { command: string }): void {
