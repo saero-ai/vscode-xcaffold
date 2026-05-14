@@ -34,6 +34,7 @@ mock('vscode', {
     registerFileDecorationProvider: (provider: any) => ({ dispose: () => {} }),
     registerWebviewViewProvider: (viewId: string, provider: any) => ({ dispose: () => {} }),
     showTextDocument: async () => {},
+    onDidChangeActiveTextEditor: (listener: any) => ({ dispose: () => {} }),
     createWebviewPanel: (viewType: string, title: string, showOptions: any, options: any) => ({
       webview: {
         html: '',

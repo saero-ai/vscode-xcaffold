@@ -30,6 +30,7 @@ import { diagnosticCollection } from './diagnosticProvider';
 import { runNewResourceWizard } from './newResourceProvider';
 import { XcafCodeActionProvider } from './codeActionProvider';
 import { StatusDashViewProvider } from './statusDashViewProvider';
+import { MiniGraphProvider } from './miniGraphProvider';
 
 /** Debounce timeout for xcafIndex refresh (ms). */
 const INDEX_DEBOUNCE_MS = 500;
@@ -449,7 +450,20 @@ export async function activate(
     context.subscriptions.push(statusDashViewProvider);
   }
 
-  // 7b-ii. Register refreshDashboard command for post-apply refresh
+  // 7b-ii. Register sidebar mini-graph (WebviewViewProvider)
+  const miniGraphProvider = workspaceFolderPath
+    ? new MiniGraphProvider(context.extensionUri, dataSource, workspaceFolderPath, xcafIndex)
+    : undefined;
+  if (miniGraphProvider) {
+    const miniGraphRegistration = vscode.window.registerWebviewViewProvider(
+      'xcaffoldMiniGraph',
+      miniGraphProvider,
+    );
+    context.subscriptions.push(miniGraphRegistration);
+    context.subscriptions.push(miniGraphProvider);
+  }
+
+  // 7b-iii. Register refreshDashboard command for post-apply refresh
   const refreshDashboardCommand = vscode.commands.registerCommand(
     'xcaffold.refreshDashboard',
     () => {

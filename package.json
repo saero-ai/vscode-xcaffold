@@ -171,6 +171,11 @@
         {
           "id": "xcaffoldActions",
           "name": "Actions"
+        },
+        {
+          "id": "xcaffoldMiniGraph",
+          "name": "Dependencies",
+          "type": "webview"
         }
       ]
     },
