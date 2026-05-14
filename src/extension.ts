@@ -148,20 +148,14 @@ function registerProviders(
   cli: XcaffoldCli,
   xcafIndex: XcafIndex,
   context: vscode.ExtensionContext
-): { treeProvider: XcaffoldTreeProvider; diagnosticProvider: vscode.Disposable; commandProvider: vscode.Disposable; treeView: vscode.Disposable; actionsView: vscode.Disposable } {
+): { treeProvider: XcaffoldTreeProvider; diagnosticProvider: vscode.Disposable; commandProvider: vscode.Disposable; treeView: vscode.Disposable } {
   const diagnosticProvider = registerDiagnosticProvider(cli);
   const commandProvider = registerCommandProvider(cli);
 
   const treeProvider = new XcaffoldTreeProvider(cli, xcafIndex);
   const treeView = vscode.window.registerTreeDataProvider('xcaffoldExplorer', treeProvider);
 
-  // Empty provider for Actions panel — content comes from viewsWelcome in package.json
-  const actionsView = vscode.window.registerTreeDataProvider('xcaffoldActions', {
-    getTreeItem: (el: vscode.TreeItem) => el,
-    getChildren: () => [],
-  });
-
-  return { treeProvider, diagnosticProvider, commandProvider, treeView, actionsView };
+  return { treeProvider, diagnosticProvider, commandProvider, treeView };
 }
 
 /**
