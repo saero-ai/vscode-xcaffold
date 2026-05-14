@@ -7,6 +7,7 @@ import { XcaffoldGraphProvider } from './graphProvider';
 import { disposeOutputChannel } from './outputChannel';
 import { checkMinimumVersion } from './versionCheck';
 import { XcafIndex, parseFrontmatter } from './xcafIndex';
+import type { DataSource } from './webview/dataSource';
 import { StatusBarProvider } from './statusBarProvider';
 import { runInitWizard } from './initWizardProvider';
 import { runImportPicker } from './importPickerProvider';
@@ -171,7 +172,8 @@ function registerCommands(
   scheduleIndexRefresh: () => void,
   workspaceFolderPath: string | undefined,
   statusBar: StatusBarProvider,
-  dataSource: CliDataSource
+  dataSource: DataSource,
+  xcafIndex: XcafIndex,
 ): { refreshCommand: vscode.Disposable; graphCommand: vscode.Disposable; initWizardCommand: vscode.Disposable; importPickerCommand: vscode.Disposable; diffCommand: vscode.Disposable; fidelityCommand: vscode.Disposable; statusDashCommand: vscode.Disposable; schemaViewerCommand: vscode.Disposable } {
   const refreshCommand = vscode.commands.registerCommand('xcaffold.refreshExplorer', () => {
     treeProvider.refresh();
@@ -189,7 +191,7 @@ function registerCommands(
   const graphCommand = vscode.commands.registerCommand('xcaffold.graph', () => {
     const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (wsFolder) {
-      XcaffoldGraphProvider.show(cli, wsFolder, context.extensionUri);
+      XcaffoldGraphProvider.show(dataSource, wsFolder, context.extensionUri, xcafIndex);
     }
   });
 
@@ -434,7 +436,7 @@ export async function activate(
   );
 
   // 8. Register custom commands
-  const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, fidelityCommand, statusDashCommand, schemaViewerCommand } = registerCommands(context, cli, treeProvider, scheduleIndexRefresh, workspaceFolderPath, statusBar, dataSource);
+  const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, fidelityCommand, statusDashCommand, schemaViewerCommand } = registerCommands(context, cli, treeProvider, scheduleIndexRefresh, workspaceFolderPath, statusBar, dataSource, xcafIndex);
 
   // 8b. Register New Resource wizard (replaces the stub in commandProvider)
   const newResourceCommand = vscode.commands.registerCommand(
