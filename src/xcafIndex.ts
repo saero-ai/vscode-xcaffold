@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { XcafProjectModel } from './xcafProjectModel';
 
 export interface FrontmatterResult {
   kind: string;
@@ -74,18 +75,32 @@ export function parseFrontmatter(content: string): FrontmatterResult | null {
 /**
  * XcafIndex maps {kind, name} pairs to file locations.
  * Used by tree view (click-to-open) and definition provider (go-to-def).
+ *
+ * Supports two modes:
+ * - Legacy mode: Map-based storage used before setModel() is called.
+ * - Model-backed mode: after setModel(), all queries delegate to XcafProjectModel.
+ *   Mutation methods (setEntry, removeByUri, clear) become no-ops in model-backed mode.
  */
 export class XcafIndex {
-  // key: "kind:name" -> entry
+  private model: XcafProjectModel | undefined;
+
+  // Legacy storage (used only before setModel is called)
   private entries = new Map<string, XcafEntry>();
-  // reverse index: fileUri -> list of keys
   private fileToKeys = new Map<string, string[]>();
+
+  setModel(model: XcafProjectModel): void {
+    this.model = model;
+    // Clear legacy storage — model is now the source of truth
+    this.entries.clear();
+    this.fileToKeys.clear();
+  }
 
   private makeKey(kind: string, name: string): string {
     return `${kind.toLowerCase()}:${name}`;
   }
 
   setEntry(entry: XcafEntry): void {
+    if (this.model) { return; } // no-op in model mode
     const key = this.makeKey(entry.kind, entry.name);
     this.entries.set(key, entry);
 
@@ -97,10 +112,12 @@ export class XcafIndex {
   }
 
   resolve(kind: string, name: string): XcafEntry | undefined {
+    if (this.model) { return this.model.resolve(kind, name); }
     return this.entries.get(this.makeKey(kind, name));
   }
 
   resolveByName(name: string): XcafEntry | undefined {
+    if (this.model) { return this.model.resolveByName(name); }
     for (const entry of this.entries.values()) {
       if (entry.name === name) {
         return entry;
@@ -110,6 +127,7 @@ export class XcafIndex {
   }
 
   removeByUri(fileUri: string): void {
+    if (this.model) { return; } // no-op in model mode
     const keys = this.fileToKeys.get(fileUri);
     if (keys) {
       for (const key of keys) {
@@ -120,11 +138,13 @@ export class XcafIndex {
   }
 
   clear(): void {
+    if (this.model) { return; } // no-op in model mode
     this.entries.clear();
     this.fileToKeys.clear();
   }
 
   allEntries(): XcafEntry[] {
+    if (this.model) { return this.model.allEntries(); }
     return Array.from(this.entries.values());
   }
 }
