@@ -6,6 +6,7 @@ import {
   parseOverrideFilename,
   scanXcafDirectory,
   FsAdapter,
+  XcafProjectModel,
 } from '../xcafProjectModel';
 
 suite('xcafProjectModel', () => {
@@ -428,6 +429,163 @@ suite('xcafProjectModel', () => {
       // Only files (not directories) should appear in the files list
       assert.strictEqual(resource.artifactDirs[0].files.length, 1);
       assert.strictEqual(resource.artifactDirs[0].files[0], 'file1.md');
+    });
+  });
+
+  suite('XcafProjectModel', () => {
+    // File=1, Directory=2 per vscode.FileType convention
+    const FILE = 1;
+    const DIR = 2;
+
+    function makeMockFs(
+      structure: Record<string, Array<[string, number]>>,
+    ): FsAdapter {
+      return {
+        readDirectory: async (dirPath: string) => {
+          const normalized = dirPath.replace(/\\/g, '/');
+          const entries = structure[normalized];
+          if (entries !== undefined) {
+            return entries;
+          }
+          return [];
+        },
+      };
+    }
+
+    const xcafRoot = '/workspace/xcaf';
+
+    function makeFullFs(): FsAdapter {
+      return makeMockFs({
+        '/workspace/xcaf': [
+          ['agents', DIR],
+          ['skills', DIR],
+          ['rules', DIR],
+        ],
+        '/workspace/xcaf/agents': [
+          ['auth-specialist', DIR],
+          ['simple-agent', DIR],
+        ],
+        '/workspace/xcaf/agents/auth-specialist': [
+          ['agent.xcaf', FILE],
+          ['agent.claude.xcaf', FILE],
+          ['agent.gemini.xcaf', FILE],
+        ],
+        '/workspace/xcaf/agents/simple-agent': [
+          ['agent.xcaf', FILE],
+        ],
+        '/workspace/xcaf/skills': [
+          ['brainstorming', DIR],
+        ],
+        '/workspace/xcaf/skills/brainstorming': [
+          ['skill.xcaf', FILE],
+          ['skill.claude.xcaf', FILE],
+          ['references', DIR],
+        ],
+        '/workspace/xcaf/skills/brainstorming/references': [
+          ['canvas.md', FILE],
+          ['intent.md', FILE],
+        ],
+        '/workspace/xcaf/rules': [
+          ['my-rule', DIR],
+        ],
+        '/workspace/xcaf/rules/my-rule': [
+          ['rule.xcaf', FILE],
+        ],
+      });
+    }
+
+    test('getKinds() returns sorted kind groups (agent, rule, skill)', async () => {
+      const model = await XcafProjectModel.scan(xcafRoot, makeFullFs());
+      const kinds = model.getKinds().map(g => g.kind);
+      assert.deepStrictEqual(kinds, ['agent', 'rule', 'skill']);
+    });
+
+    test('getResources("agent") returns 2 resources', async () => {
+      const model = await XcafProjectModel.scan(xcafRoot, makeFullFs());
+      const resources = model.getResources('agent');
+      assert.strictEqual(resources.length, 2);
+    });
+
+    test('getResources("unknown") returns empty array', async () => {
+      const model = await XcafProjectModel.scan(xcafRoot, makeFullFs());
+      const resources = model.getResources('unknown');
+      assert.deepStrictEqual(resources, []);
+    });
+
+    test('getResource("agent", "auth-specialist") returns resource with 2 overrides', async () => {
+      const model = await XcafProjectModel.scan(xcafRoot, makeFullFs());
+      const resource = model.getResource('agent', 'auth-specialist');
+      assert.ok(resource, 'resource should exist');
+      assert.strictEqual(resource.name, 'auth-specialist');
+      assert.strictEqual(resource.overrides.length, 2);
+    });
+
+    test('getResource("agent", "nonexistent") returns undefined', async () => {
+      const model = await XcafProjectModel.scan(xcafRoot, makeFullFs());
+      const resource = model.getResource('agent', 'nonexistent');
+      assert.strictEqual(resource, undefined);
+    });
+
+    test('resolve("agent", "auth-specialist") returns entry with correct fileUri', async () => {
+      const model = await XcafProjectModel.scan(xcafRoot, makeFullFs());
+      const entry = model.resolve('agent', 'auth-specialist');
+      assert.ok(entry, 'entry should exist');
+      assert.ok(
+        entry.fileUri.endsWith(path.join('auth-specialist', 'agent.xcaf')),
+        `Expected fileUri to end with auth-specialist/agent.xcaf, got: ${entry.fileUri}`,
+      );
+      assert.strictEqual(entry.kind, 'agent');
+      assert.strictEqual(entry.name, 'auth-specialist');
+      assert.strictEqual(entry.nameLine, 0);
+    });
+
+    test('resolve("agent", "nonexistent") returns undefined', async () => {
+      const model = await XcafProjectModel.scan(xcafRoot, makeFullFs());
+      const entry = model.resolve('agent', 'nonexistent');
+      assert.strictEqual(entry, undefined);
+    });
+
+    test('resolveByName("brainstorming") returns skill entry with correct fileUri', async () => {
+      const model = await XcafProjectModel.scan(xcafRoot, makeFullFs());
+      const entry = model.resolveByName('brainstorming');
+      assert.ok(entry, 'entry should exist');
+      assert.ok(
+        entry.fileUri.endsWith(path.join('brainstorming', 'skill.xcaf')),
+        `Expected fileUri to end with brainstorming/skill.xcaf, got: ${entry.fileUri}`,
+      );
+      assert.strictEqual(entry.kind, 'skill');
+      assert.strictEqual(entry.name, 'brainstorming');
+      assert.strictEqual(entry.nameLine, 0);
+    });
+
+    test('resolveByName("nonexistent") returns undefined', async () => {
+      const model = await XcafProjectModel.scan(xcafRoot, makeFullFs());
+      const entry = model.resolveByName('nonexistent');
+      assert.strictEqual(entry, undefined);
+    });
+
+    test('allEntries() returns 4 entries (one per resource base manifest)', async () => {
+      const model = await XcafProjectModel.scan(xcafRoot, makeFullFs());
+      const entries = model.allEntries();
+      assert.strictEqual(entries.length, 4);
+    });
+
+    test('allEntries() entries each have nameLine: 0', async () => {
+      const model = await XcafProjectModel.scan(xcafRoot, makeFullFs());
+      const entries = model.allEntries();
+      for (const entry of entries) {
+        assert.strictEqual(entry.nameLine, 0);
+      }
+    });
+
+    test('constructor with empty groups produces empty model', () => {
+      const model = new XcafProjectModel([]);
+      assert.deepStrictEqual(model.getKinds(), []);
+      assert.deepStrictEqual(model.getResources('agent'), []);
+      assert.strictEqual(model.getResource('agent', 'foo'), undefined);
+      assert.strictEqual(model.resolve('agent', 'foo'), undefined);
+      assert.strictEqual(model.resolveByName('foo'), undefined);
+      assert.deepStrictEqual(model.allEntries(), []);
     });
   });
 });

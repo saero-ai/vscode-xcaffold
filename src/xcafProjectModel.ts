@@ -173,3 +173,58 @@ export async function scanXcafDirectory(
 
   return groups;
 }
+
+export class XcafProjectModel {
+  private kindMap: Map<string, XcafKindGroup>;
+
+  constructor(groups: XcafKindGroup[]) {
+    this.kindMap = new Map();
+    for (const g of groups) {
+      this.kindMap.set(g.kind, g);
+    }
+  }
+
+  static async scan(xcafRoot: string, fs: FsAdapter): Promise<XcafProjectModel> {
+    const groups = await scanXcafDirectory(xcafRoot, fs);
+    return new XcafProjectModel(groups);
+  }
+
+  getKinds(): XcafKindGroup[] {
+    return Array.from(this.kindMap.values()).sort((a, b) => a.kind.localeCompare(b.kind));
+  }
+
+  getResources(kind: string): XcafResource[] {
+    return this.kindMap.get(kind)?.resources ?? [];
+  }
+
+  getResource(kind: string, name: string): XcafResource | undefined {
+    return this.getResources(kind).find(r => r.name === name);
+  }
+
+  // Compatibility shim — matches XcafEntry shape from xcafIndex.ts
+  resolve(kind: string, name: string): { fileUri: string; kind: string; name: string; nameLine: number } | undefined {
+    const resource = this.getResource(kind, name);
+    if (!resource) { return undefined; }
+    return { fileUri: resource.baseManifest, kind, name, nameLine: 0 };
+  }
+
+  resolveByName(name: string): { fileUri: string; kind: string; name: string; nameLine: number } | undefined {
+    for (const group of this.kindMap.values()) {
+      const resource = group.resources.find(r => r.name === name);
+      if (resource) {
+        return { fileUri: resource.baseManifest, kind: group.kind, name, nameLine: 0 };
+      }
+    }
+    return undefined;
+  }
+
+  allEntries(): Array<{ fileUri: string; kind: string; name: string; nameLine: number }> {
+    const entries: Array<{ fileUri: string; kind: string; name: string; nameLine: number }> = [];
+    for (const group of this.kindMap.values()) {
+      for (const resource of group.resources) {
+        entries.push({ fileUri: resource.baseManifest, kind: group.kind, name: resource.name, nameLine: 0 });
+      }
+    }
+    return entries;
+  }
+}
