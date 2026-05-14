@@ -160,6 +160,11 @@
     "views": {
       "xcaffold": [
         {
+          "id": "xcaffoldStatusDash",
+          "name": "Status",
+          "type": "webview"
+        },
+        {
           "id": "xcaffoldExplorer",
           "name": "Resource Explorer"
         },

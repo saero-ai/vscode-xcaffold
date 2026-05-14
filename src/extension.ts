@@ -29,6 +29,7 @@ import { XcafSemanticTokenProvider, xcafSemanticLegend } from './semanticTokenPr
 import { diagnosticCollection } from './diagnosticProvider';
 import { runNewResourceWizard } from './newResourceProvider';
 import { XcafCodeActionProvider } from './codeActionProvider';
+import { StatusDashViewProvider } from './statusDashViewProvider';
 
 /** Debounce timeout for xcafIndex refresh (ms). */
 const INDEX_DEBOUNCE_MS = 500;
@@ -434,6 +435,29 @@ export async function activate(
   const dataSource = new CliDataSource(
     (args, cwd) => cli.run(args, cwd),
   );
+
+  // 7b. Register sidebar status dashboard (WebviewViewProvider)
+  const statusDashViewProvider = workspaceFolderPath
+    ? new StatusDashViewProvider(context.extensionUri, dataSource, workspaceFolderPath)
+    : undefined;
+  if (statusDashViewProvider) {
+    const statusDashViewRegistration = vscode.window.registerWebviewViewProvider(
+      'xcaffoldStatusDash',
+      statusDashViewProvider,
+    );
+    context.subscriptions.push(statusDashViewRegistration);
+    context.subscriptions.push(statusDashViewProvider);
+  }
+
+  // 7c. Wire .xcaf save watcher to sidebar status refresh (2s debounce)
+  if (statusDashViewProvider) {
+    const sidebarSaveWatcher = vscode.workspace.onDidSaveTextDocument((doc) => {
+      if (doc.fileName.endsWith('.xcaf')) {
+        statusDashViewProvider.scheduleRefresh();
+      }
+    });
+    context.subscriptions.push(sidebarSaveWatcher);
+  }
 
   // 8. Register custom commands
   const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, fidelityCommand, statusDashCommand, schemaViewerCommand } = registerCommands(context, cli, treeProvider, scheduleIndexRefresh, workspaceFolderPath, statusBar, dataSource, xcafIndex);
