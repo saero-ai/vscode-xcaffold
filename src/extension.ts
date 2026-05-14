@@ -3,11 +3,11 @@ import * as path from 'path';
 import { XcaffoldCli } from './xcaffoldCli';
 import { registerDiagnosticProvider } from './diagnosticProvider';
 import { registerCommandProvider } from './commandProvider';
-import { ObjectExplorerProvider, XcaffoldTreeProvider } from './treeViewProvider';
+import { ObjectExplorerProvider } from './treeViewProvider';
 import { XcaffoldGraphProvider } from './graphProvider';
 import { disposeOutputChannel } from './outputChannel';
 import { checkMinimumVersion } from './versionCheck';
-import { XcafIndex, parseFrontmatter } from './xcafIndex';
+import { XcafIndex } from './xcafIndex';
 import { XcafProjectModel, FsAdapter } from './xcafProjectModel';
 import type { DataSource } from './webview/dataSource';
 import { StatusBarProvider } from './statusBarProvider';
@@ -63,30 +63,6 @@ function promptIconTheme(context: vscode.ExtensionContext): void {
     }
     context.globalState.update('xcaffold.iconThemePrompted', true);
   });
-}
-
-/**
- * buildXcafIndex scans all workspace .xcaf files and populates the index.
- */
-async function buildXcafIndex(index: XcafIndex): Promise<void> {
-  index.clear();
-  const files = await vscode.workspace.findFiles('**/*.xcaf', '**/node_modules/**');
-  for (const file of files) {
-    try {
-      const doc = await vscode.workspace.openTextDocument(file);
-      const result = parseFrontmatter(doc.getText());
-      if (result) {
-        index.setEntry({
-          kind: result.kind.toLowerCase(),
-          name: result.name,
-          fileUri: file.fsPath,
-          nameLine: result.nameLine,
-        });
-      }
-    } catch {
-      // Skip unreadable files
-    }
-  }
 }
 
 /**
