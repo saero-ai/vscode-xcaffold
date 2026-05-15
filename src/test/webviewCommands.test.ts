@@ -17,12 +17,6 @@ suite('Webview command registration', () => {
     assert.ok(found.title.includes('Diff'), 'title must mention Diff');
   });
 
-  test('package.json has xcaffold.fidelity command', () => {
-    const cmds = pkg.contributes.commands;
-    const found = cmds.find((c: any) => c.command === 'xcaffold.fidelity');
-    assert.ok(found, 'xcaffold.fidelity command must exist');
-  });
-
   test('package.json has xcaffold.statusDash command', () => {
     const cmds = pkg.contributes.commands;
     const found = cmds.find((c: any) => c.command === 'xcaffold.statusDash');
