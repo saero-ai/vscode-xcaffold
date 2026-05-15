@@ -4,10 +4,6 @@ version: "1.0"
 name: vscode-extension-dev
 description: "Use for implementing VS Code extension providers, commands, CLI integration, and core TypeScript code. Dispatch when tasks involve src/ (excluding src/test/ and src/webview/)."
 tools: [Read, Edit, Write, Bash, Glob, Grep]
-targets:
-  claude: {}
-  gemini: {}
-  antigravity: {}
 ---
 # vscode-extension-dev
 

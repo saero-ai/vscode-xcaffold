@@ -3,7 +3,6 @@ kind: context
 version: "1.0"
 name: orchestrator
 description: "Orchestrator context for xcaffold-vscode development — agent routing, mode detection, dispatch protocol"
-targets: [claude]
 ---
 # xcaffold VS Code Extension
 

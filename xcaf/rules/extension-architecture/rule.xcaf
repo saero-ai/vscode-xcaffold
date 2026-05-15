@@ -4,10 +4,6 @@ version: "1.0"
 name: extension-architecture
 description: "Architectural patterns for the xcaffold VS Code extension — provider registration, CLI integration, index, concurrency, data source"
 activation: always
-targets:
-  claude: {}
-  gemini: {}
-  antigravity: {}
 ---
 # Extension Architecture Patterns
 

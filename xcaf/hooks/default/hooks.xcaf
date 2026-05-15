@@ -6,3 +6,8 @@ events:
       hooks:
         - command: bash -c 'cd "${CLAUDE_PROJECT_DIR:-.}" && npx tsc -p ./ --noEmit --pretty 2>&1 | head -20; exit ${PIPESTATUS[0]}'
           type: command
+    PreCommit:
+      - matcher: ""
+        hooks:
+          - command: bash -c 'cd "${CLAUDE_PROJECT_DIR:-.}" && git diff --cached -- . | grep -inE "(xcaffold-platform|assembly\.floor|cloud\.hub|/Volumes/Projects/|/Users/[^/]+/|Phase [0-9]|sprint|roadmap|milestone|premium|enterprise|saas)" && echo "BLOCKED: prohibited pattern found in staged changes" && exit 2 || exit 0'
+            type: command

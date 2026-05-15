@@ -5,10 +5,6 @@ name: add-language-feature
 description: "Step-by-step guide for adding a new VS Code language feature provider (CompletionItem, Hover, DocumentSymbol, Reference, Rename, CodeAction, SemanticTokens, etc.)"
 allowed-tools: [Read, Edit, Write, Bash, Glob, Grep]
 artifacts: [references]
-targets:
-  claude: {}
-  gemini: {}
-  antigravity: {}
 ---
 # Add Language Feature
 

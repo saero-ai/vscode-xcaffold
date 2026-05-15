@@ -5,10 +5,6 @@ name: add-webview-panel
 description: "Step-by-step guide for creating a new webview panel that extends BaseWebview with CSP, nonce, and DataSource integration"
 allowed-tools: [Read, Edit, Write, Bash, Glob, Grep]
 artifacts: [references]
-targets:
-  claude: {}
-  gemini: {}
-  antigravity: {}
 ---
 # Add Webview Panel
 

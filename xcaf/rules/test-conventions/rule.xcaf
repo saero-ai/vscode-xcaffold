@@ -4,10 +4,6 @@ version: "1.0"
 name: test-conventions
 description: "Test file naming, mock setup, pure function extraction, and Mocha test patterns for the xcaffold VS Code extension"
 paths: ["src/test/**"]
-targets:
-  claude: {}
-  gemini: {}
-  antigravity: {}
 ---
 # Test Conventions
 
