@@ -2,6 +2,11 @@
 
 All notable changes to the xcaffold VS Code extension will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- Improved xcaffold resource snippets with clearer descriptions and placeholder hints.
+
 ## [0.2.0] - 2026-05-04
 
 ### Build Infrastructure
