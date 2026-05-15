@@ -1,17 +1,17 @@
 # xcaffold for VS Code
 
-VS Code extension for authoring and managing xcaffold `.xcf` manifests. Wraps the `xcaffold` Go CLI to provide an IDE-native experience for agent configuration — validation, autocomplete, resource browsing, and interactive commands without leaving the editor.
+VS Code extension for authoring and managing xcaffold `.xcaf` manifests. Wraps the `xcaffold` Go CLI to provide an IDE-native experience for agent configuration — validation, autocomplete, resource browsing, and interactive commands without leaving the editor.
 
 ## Features
 
 **Schema and Validation**
-- JSON Schema integration for all `.xcf` resource kinds via `redhat.vscode-yaml`
+- JSON Schema integration for all `.xcaf` resource kinds via `redhat.vscode-yaml`
 - Validate-on-save with inline diagnostics from `xcaffold validate`
-- File-level validation for the active `.xcf` editor
+- File-level validation for the active `.xcaf` editor
 
 **Resource Explorer**
 - Sidebar tree view showing all resources grouped by kind
-- Click any resource to open its `.xcf` file
+- Click any resource to open its `.xcaf` file
 - Right-click context menus for Apply and Validate per resource
 
 **Interactive Commands**
@@ -28,7 +28,7 @@ VS Code extension for authoring and managing xcaffold `.xcf` manifests. Wraps th
 
 **Editor Integration**
 - CodeLens above `kind:` declarations — inline Apply and Validate actions
-- Go-to-definition for resource references (`skills: [name]` -> jump to `.xcf` file)
+- Go-to-definition for resource references (`skills: [name]` -> jump to `.xcaf` file)
 - Snippet scaffolding for agent, skill, rule, workflow, and mcp resources
 
 **Status Bar**
@@ -47,11 +47,11 @@ VS Code extension for authoring and managing xcaffold `.xcf` manifests. Wraps th
 
 ## Usage
 
-1. Open a workspace containing a `project.xcf` file
+1. Open a workspace containing a `project.xcaf` file
 2. The xcaffold icon appears in the Activity Bar — click to open the Resource Explorer
-3. Edit any `.xcf` file to get autocomplete, validation, and CodeLens actions
+3. Edit any `.xcaf` file to get autocomplete, validation, and CodeLens actions
 4. Use the Command Palette (`Cmd+Shift+P`) to access all xcaffold commands
 
 ## License
 
-MIT
+Apache-2.0

@@ -12,13 +12,13 @@ All notable changes to the xcaffold VS Code extension will be documented in this
 - Added minimum CLI version check on activation
 
 ### Tree View Enhancements
-- Click any resource in the tree to open its `.xcf` file
+- Click any resource in the tree to open its `.xcaf` file
 - Right-click context menus: Apply and Validate per resource
 - Shared name-to-file index for resource resolution
 
 ### Interactive Commands
 - Target-filtered apply — quick pick to select providers before compiling
-- File-level validate — validate only the active `.xcf` file
+- File-level validate — validate only the active `.xcaf` file
 - Init wizard — detect existing provider configs, offer import, create project
 - Import picker — multi-select providers to import from
 
@@ -39,7 +39,7 @@ All notable changes to the xcaffold VS Code extension will be documented in this
 ## [0.1.0] - 2026-05-04
 
 - Initial release
-- JSON Schema integration for `.xcf` manifest validation and autocomplete
+- JSON Schema integration for `.xcaf` manifest validation and autocomplete
 - Validate-on-save diagnostics via `xcaffold validate`
 - Interactive D3.js resource graph webview
 - Resource Explorer sidebar grouped by kind
