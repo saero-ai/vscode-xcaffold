@@ -4,10 +4,6 @@ version: "1.0"
 name: vscode-webview-dev
 description: "Use for implementing webview panels, HTML templates, D3.js visualizations, and the BaseWebview abstraction. Dispatch when tasks involve src/webview/ or webview provider files."
 tools: [Read, Edit, Write, Bash, Glob, Grep]
-targets:
-  claude: {}
-  gemini: {}
-  antigravity: {}
 ---
 # vscode-webview-dev
 

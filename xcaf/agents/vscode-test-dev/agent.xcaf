@@ -4,10 +4,6 @@ version: "1.0"
 name: vscode-test-dev
 description: "Use for writing Mocha tests, updating test fixtures, and maintaining the vscode module mock layer. Dispatch when tasks involve src/test/."
 tools: [Read, Edit, Write, Bash, Glob, Grep]
-targets:
-  claude: {}
-  gemini: {}
-  antigravity: {}
 ---
 # vscode-test-dev
 

@@ -3,10 +3,7 @@ kind: rule
 version: "1.0"
 name: pre-commit-scrutiny
 description: "Mandates scanning for prohibited patterns before any git commit to prevent leaking confidential information in this public repository"
-targets:
-  claude: {}
-  gemini: {}
-  antigravity: {}
+activation: always
 ---
 # Pre-Commit Scrutiny
 

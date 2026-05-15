@@ -1,3 +1,13 @@
+# VS Code Extension Settings
+#
+# Permissions: Read, Edit, Write, Glob, Grep, Bash
+# All agents share these tool permissions. The extension has a
+# zero-runtime-dependency policy — agents must not add packages
+# to dependencies (devDependencies only).
+#
+# TypeScript strict mode is enforced via a PreToolUse hook that
+# runs tsc --noEmit before every Write/Edit operation.
+
 kind: settings
 version: "1.0"
 permissions:

@@ -4,10 +4,6 @@ version: "1.0"
 name: vscode-conventions
 description: "VS Code extension development standards — esbuild bundler, Mocha+ts-node tests, zero runtime deps, strict TypeScript"
 activation: always
-targets:
-  claude: {}
-  gemini: {}
-  antigravity: {}
 ---
 # VS Code Extension Development Conventions
 

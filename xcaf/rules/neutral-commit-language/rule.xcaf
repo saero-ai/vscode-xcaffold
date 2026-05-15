@@ -3,10 +3,7 @@ kind: rule
 version: "1.0"
 name: neutral-commit-language
 description: "Commit messages must use neutral, feature-oriented language — never reference cleanup processes, prohibited terms, or internal phases"
-targets:
-  claude: {}
-  gemini: {}
-  antigravity: {}
+activation: always
 ---
 # Neutral Commit Language
 

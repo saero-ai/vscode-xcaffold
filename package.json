@@ -5,7 +5,7 @@
   "version": "0.2.0",
   "publisher": "saero-ai",
   "icon": "logo.png",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "xcaffold": {
     "minCliVersion": "0.5.0"
   },

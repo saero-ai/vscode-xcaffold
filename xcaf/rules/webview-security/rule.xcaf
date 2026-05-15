@@ -4,10 +4,6 @@ version: "1.0"
 name: webview-security
 description: "Webview Content Security Policy, nonce requirements, and resource loading rules"
 activation: always
-targets:
-  claude: {}
-  gemini: {}
-  antigravity: {}
 ---
 # Webview Security Rules
 
