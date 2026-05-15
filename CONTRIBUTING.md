@@ -49,7 +49,9 @@ test(cli-queue): add cancellation test cases
 
 ### Changelog
 
-Update `CHANGELOG.md` for every user-facing change. Add entries under `[Unreleased]`. For breaking changes, add both a `Breaking Changes` entry and a `Migration` entry.
+Changelogs are generated automatically by [release-please](https://github.com/googleapis/release-please) from Conventional Commit messages. Do not edit `CHANGELOG.md` manually — your commit messages become the changelog entries. Write clear, user-facing commit descriptions.
+
+For breaking changes, include a `BREAKING CHANGE:` footer in the commit message body.
 
 ### PR Checklist
 
@@ -58,7 +60,6 @@ Update `CHANGELOG.md` for every user-facing change. Add entries under `[Unreleas
 - [ ] No new runtime dependencies added (`dependencies` in `package.json` must not grow)
 - [ ] Tree view and webview changes tested manually in the Extension Development Host
 - [ ] `README.md` updated if user-facing behavior changed
-- [ ] `CHANGELOG.md` updated
 
 ## Testing
 
@@ -150,8 +151,7 @@ A breaking change requires existing users to modify their workflow, configuratio
 
 1. Deprecate with a warning in the current release
 2. Remove in the following release
-3. Add a `BREAKING CHANGE:` footer to the commit message
-4. Add `Breaking Changes` and `Migration` entries to `CHANGELOG.md`
+3. Add a `BREAKING CHANGE:` footer to the commit message — release-please will generate the changelog entry
 
 ## Good First Issues
 
