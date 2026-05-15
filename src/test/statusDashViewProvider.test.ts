@@ -3,9 +3,12 @@ import * as assert from 'assert';
 import {
   parseStatusOutput,
   parseValidateSummary,
+  StatusDashViewProvider,
   StatusInfo,
   ValidateSummary,
 } from '../statusDashViewProvider';
+import { DataSource } from '../webview/dataSource';
+import { CliResult } from '../xcaffoldCli';
 
 suite('StatusDashViewProvider', () => {
   suite('parseStatusOutput', () => {
@@ -95,6 +98,26 @@ suite('StatusDashViewProvider', () => {
       assert.strictEqual(result.providers[0].files, 3);
       assert.strictEqual(result.providers[0].status, 'outdated');
     });
+
+    test('stops at blank line after provider rows — Sources row not included', () => {
+      const stdout = [
+        'xcaffold-project  .  last applied 8 hours ago',
+        '',
+        '  PROVIDER       FILES   STATUS',
+        '  antigravity      145   ok synced',
+        '  claude           251   !! 2 modified',
+        '',
+        '  Sources  466 .xcaf files  .  179 changed since last apply',
+      ].join('\n');
+
+      const result = parseStatusOutput(stdout);
+      assert.strictEqual(result.providers.length, 2);
+      assert.strictEqual(result.providers[0].name, 'antigravity');
+      assert.strictEqual(result.providers[0].files, 145);
+      assert.strictEqual(result.providers[1].name, 'claude');
+      assert.strictEqual(result.providers[1].files, 251);
+      assert.strictEqual(result.providers[1].status, '!! 2 modified');
+    });
   });
 
   suite('parseValidateSummary', () => {
@@ -110,6 +133,10 @@ suite('StatusDashViewProvider', () => {
       const result = parseValidateSummary(stdout);
       assert.strictEqual(result.errors, 2);
       assert.strictEqual(result.warnings, 0);
+      assert.deepStrictEqual(result.messages, [
+        'agents/my-agent: missing required field "model"',
+        'rules/bad-rule: invalid name format',
+      ]);
     });
 
     test('counts warnings from lines with warn keyword', () => {
@@ -123,6 +150,10 @@ suite('StatusDashViewProvider', () => {
       const result = parseValidateSummary(stdout);
       assert.strictEqual(result.errors, 0);
       assert.strictEqual(result.warnings, 2);
+      assert.deepStrictEqual(result.messages, [
+        'deprecated field "allowed-tools" in agent',
+        'unused skill reference',
+      ]);
     });
 
     test('counts both errors and warnings', () => {
@@ -136,9 +167,10 @@ suite('StatusDashViewProvider', () => {
       const result = parseValidateSummary(stdout);
       assert.strictEqual(result.errors, 2);
       assert.strictEqual(result.warnings, 1);
+      assert.strictEqual(result.messages.length, 3);
     });
 
-    test('returns zeros for clean output', () => {
+    test('returns zeros and empty messages for clean output', () => {
       const stdout = [
         'Validating project...',
         'ok agents/my-agent',
@@ -149,12 +181,14 @@ suite('StatusDashViewProvider', () => {
       const result = parseValidateSummary(stdout);
       assert.strictEqual(result.errors, 0);
       assert.strictEqual(result.warnings, 0);
+      assert.deepStrictEqual(result.messages, []);
     });
 
-    test('returns zeros for empty output', () => {
+    test('returns zeros and empty messages for empty output', () => {
       const result = parseValidateSummary('');
       assert.strictEqual(result.errors, 0);
       assert.strictEqual(result.warnings, 0);
+      assert.deepStrictEqual(result.messages, []);
     });
 
     test('handles error keyword in lines', () => {
@@ -166,6 +200,109 @@ suite('StatusDashViewProvider', () => {
       const result = parseValidateSummary(stdout);
       assert.strictEqual(result.errors, 1);
       assert.strictEqual(result.warnings, 0);
+      assert.deepStrictEqual(result.messages, [
+        'error: failed to parse agents/broken.xcaf',
+      ]);
+    });
+
+    test('captures error messages from real validate output', () => {
+      const stdout = [
+        'xcaffold-project  .  last applied 8 hours ago',
+        '',
+        '  !!  syntax and schema',
+        '',
+        '!!  Validation failed: failed to merge config files',
+        'duplicate agent ID "auth-specialist" found in agent.xcaf and agent.xcaf',
+      ].join('\n');
+
+      const result = parseValidateSummary(stdout);
+      assert.strictEqual(result.errors, 2);
+      assert.strictEqual(result.messages.length, 2);
+      assert.ok(result.messages[0].includes('syntax and schema'));
+      assert.ok(result.messages[1].includes('Validation failed'));
+    });
+  });
+
+  suite('fetchStatusInfo — non-zero exit with valid stdout', () => {
+    function createProvider(dataSource: DataSource): StatusDashViewProvider {
+      const vscode = require('vscode');
+      const fakeUri = vscode.Uri.file('/fake/extension');
+      return new StatusDashViewProvider(fakeUri, dataSource, '/fake/workspace');
+    }
+
+    test('parses stdout attached to rejected error', async () => {
+      const validStdout = [
+        'my-project  .  last applied 2 minutes ago',
+        '',
+        '  PROVIDER       FILES   STATUS',
+        '  claude            14   drift detected',
+      ].join('\n');
+
+      const ds: DataSource = {
+        fetch: () => Promise.reject(Object.assign(new Error('exit code 1'), { stdout: validStdout })),
+      };
+      const provider = createProvider(ds);
+      // Access private method via bracket notation for testing
+      const info: StatusInfo = await (provider as any)['fetchStatusInfo']();
+      assert.strictEqual(info.projectName, 'my-project');
+      assert.strictEqual(info.lastApplied, '2 minutes ago');
+      assert.strictEqual(info.providers.length, 1);
+      assert.strictEqual(info.providers[0].name, 'claude');
+      assert.strictEqual(info.providers[0].status, 'drift detected');
+    });
+
+    test('returns empty info when error has no stdout', async () => {
+      const ds: DataSource = {
+        fetch: () => Promise.reject(new Error('command not found')),
+      };
+      const provider = createProvider(ds);
+      const info: StatusInfo = await (provider as any)['fetchStatusInfo']();
+      assert.strictEqual(info.projectName, '');
+      assert.strictEqual(info.providers.length, 0);
+    });
+
+    test('returns empty info when error stdout is empty string', async () => {
+      const ds: DataSource = {
+        fetch: () => Promise.reject(Object.assign(new Error('exit code 1'), { stdout: '   ' })),
+      };
+      const provider = createProvider(ds);
+      const info: StatusInfo = await (provider as any)['fetchStatusInfo']();
+      assert.strictEqual(info.projectName, '');
+      assert.strictEqual(info.providers.length, 0);
+    });
+  });
+
+  suite('fetchValidateSummary — non-zero exit with valid stdout', () => {
+    function createProvider(dataSource: DataSource): StatusDashViewProvider {
+      const vscode = require('vscode');
+      const fakeUri = vscode.Uri.file('/fake/extension');
+      return new StatusDashViewProvider(fakeUri, dataSource, '/fake/workspace');
+    }
+
+    test('parses validation output from rejected error', async () => {
+      const validStdout = [
+        '!! agents/broken: missing required field "model"',
+        'warning: deprecated field in agent',
+        'ok skills/good',
+      ].join('\n');
+
+      const ds: DataSource = {
+        fetch: () => Promise.reject(Object.assign(new Error('exit code 1'), { stdout: validStdout })),
+      };
+      const provider = createProvider(ds);
+      const summary: ValidateSummary = await (provider as any)['fetchValidateSummary']();
+      assert.strictEqual(summary.errors, 1);
+      assert.strictEqual(summary.warnings, 1);
+    });
+
+    test('returns zeros when error has no stdout', async () => {
+      const ds: DataSource = {
+        fetch: () => Promise.reject(new Error('command not found')),
+      };
+      const provider = createProvider(ds);
+      const summary: ValidateSummary = await (provider as any)['fetchValidateSummary']();
+      assert.strictEqual(summary.errors, 0);
+      assert.strictEqual(summary.warnings, 0);
     });
   });
 });

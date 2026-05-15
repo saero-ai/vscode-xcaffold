@@ -17,9 +17,6 @@ const SIDEBAR_CSS_VARIABLES = `:root {
   --fg: var(--vscode-editor-foreground);
   --border: var(--vscode-panel-border, #333);
   --accent: var(--vscode-focusBorder, #007acc);
-  --btn-bg: var(--vscode-button-background, #0e639c);
-  --btn-fg: var(--vscode-button-foreground, #fff);
-  --btn-hover: var(--vscode-button-hoverBackground, #1177bb);
   --success: #4caf50;
   --warning: #ff9800;
   --error: #f44336;
@@ -52,13 +49,11 @@ th { font-weight: 600; font-size: 0.85em; opacity: 0.7; }
 .badge-red { background: var(--error); color: #fff; }
 .status-ok { color: var(--success); }
 .status-warn { color: var(--warning); }
-.actions { display: flex; gap: 6px; margin-top: 8px; }
-button {
-  background: var(--btn-bg); color: var(--btn-fg);
-  border: none; padding: 4px 10px; border-radius: 2px;
-  cursor: pointer; font-size: 0.85em; flex: 1;
+.validation-messages {
+  font-size: 0.8em; margin-top: 4px; padding-left: 16px; opacity: 0.85;
+  list-style: none;
 }
-button:hover { background: var(--btn-hover); }
+.validation-messages li::before { content: "- "; }
 .loading { text-align: center; padding: 20px; opacity: 0.6; }
 .error { color: var(--error); padding: 8px; font-size: 0.9em; }`;
 
@@ -81,6 +76,7 @@ export interface ProviderRow {
 export interface ValidateSummary {
   errors: number;
   warnings: number;
+  messages: string[];
 }
 
 /**
@@ -132,11 +128,12 @@ export function parseStatusOutput(stdout: string): StatusInfo {
       continue;
     }
 
-    if (!inTable) {
+    if (inTable && trimmed.length === 0) {
+      inTable = false;
       continue;
     }
 
-    if (trimmed.length === 0) {
+    if (!inTable) {
       continue;
     }
 
@@ -160,7 +157,7 @@ export function parseStatusOutput(stdout: string): StatusInfo {
  * lines with `warn` (case-insensitive) are warnings.
  */
 export function parseValidateSummary(stdout: string): ValidateSummary {
-  const summary: ValidateSummary = { errors: 0, warnings: 0 };
+  const summary: ValidateSummary = { errors: 0, warnings: 0, messages: [] };
 
   if (!stdout.trim()) {
     return summary;
@@ -173,8 +170,16 @@ export function parseValidateSummary(stdout: string): ValidateSummary {
     }
     if (trimmed.includes('!!') || /\berror\b/i.test(trimmed)) {
       summary.errors++;
+      const msg = trimmed.replace(/^!!\s*/, '').trim();
+      if (msg) {
+        summary.messages.push(msg);
+      }
     } else if (/\bwarn(ing)?\b/i.test(trimmed)) {
       summary.warnings++;
+      const msg = trimmed.replace(/^warn(ing)?:?\s*/i, '').trim();
+      if (msg) {
+        summary.messages.push(msg);
+      }
     }
   }
 
@@ -183,13 +188,11 @@ export function parseValidateSummary(stdout: string): ValidateSummary {
 
 /**
  * buildSidebarCsp constructs a nonce-based Content Security Policy
- * for the sidebar webview. Uses nonces for both script-src and
- * style-src (no unsafe-inline).
+ * for the sidebar webview. Scripts are disabled; only style nonce is needed.
  */
 function buildSidebarCsp(cspSource: string, nonce: string): string {
   return [
     "default-src 'none'",
-    `script-src 'nonce-${nonce}'`,
     `style-src 'nonce-${nonce}'`,
     `img-src ${cspSource}`,
     `font-src ${cspSource}`,
@@ -219,16 +222,11 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
     this._view = webviewView;
 
     webviewView.webview.options = {
-      enableScripts: true,
+      enableScripts: false,
       localResourceRoots: [
         vscode.Uri.joinPath(this.extensionUri, 'dist'),
       ],
     };
-
-    const msgDisposable = webviewView.webview.onDidReceiveMessage(
-      (msg) => this.handleMessage(msg),
-    );
-    this._disposables.push(msgDisposable);
 
     webviewView.onDidDispose(() => {
       this._view = undefined;
@@ -262,7 +260,7 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
     );
 
     try {
-      const body = await this.buildBody(nonce);
+      const body = await this.buildBody();
       const freshNonce = generateNonce();
       const freshCsp = buildSidebarCsp(webview.cspSource, freshNonce);
       webview.html = this.buildHtml(freshCsp, freshNonce, body);
@@ -296,7 +294,7 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
     this._disposables = [];
   }
 
-  private async buildBody(nonce: string): Promise<string> {
+  private async buildBody(): Promise<string> {
     const statusInfo = await this.fetchStatusInfo();
     const validateSummary = await this.fetchValidateSummary();
 
@@ -313,26 +311,14 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
       </div>
 
       <div class="section">
-        <h3>Validation</h3>
-        ${validationBadge}
-      </div>
-
-      <div class="section">
         <h3>Providers</h3>
         ${providerTable}
       </div>
 
-      <div class="actions">
-        <button onclick="handleAction('applyAll')">Apply All</button>
-        <button onclick="handleAction('validate')">Validate</button>
+      <div class="section">
+        <h3>Validation</h3>
+        ${validationBadge}
       </div>
-
-      <script nonce="${nonce}">
-        const vscode = acquireVsCodeApi();
-        function handleAction(action) {
-          vscode.postMessage({ command: action });
-        }
-      </script>
     `;
   }
 
@@ -343,7 +329,11 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
         this.workspaceFolder,
       );
       return parseStatusOutput(result.stdout);
-    } catch {
+    } catch (err: unknown) {
+      const stdout = (err as Record<string, unknown>)?.stdout;
+      if (typeof stdout === 'string' && stdout.trim()) {
+        return parseStatusOutput(stdout);
+      }
       return { projectName: '', lastApplied: '', providers: [] };
     }
   }
@@ -355,8 +345,12 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
         this.workspaceFolder,
       );
       return parseValidateSummary(result.stdout);
-    } catch {
-      return { errors: 0, warnings: 0 };
+    } catch (err: unknown) {
+      const stdout = (err as Record<string, unknown>)?.stdout;
+      if (typeof stdout === 'string' && stdout.trim()) {
+        return parseValidateSummary(stdout);
+      }
+      return { errors: 0, warnings: 0, messages: [] };
     }
   }
 
@@ -378,15 +372,25 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
   }
 
   private buildValidationBadge(summary: ValidateSummary): string {
+    let badge: string;
     if (summary.errors > 0) {
       const plural = summary.errors > 1 ? 's' : '';
-      return `<span class="badge badge-red">${summary.errors} error${plural}</span>`;
-    }
-    if (summary.warnings > 0) {
+      badge = `<span class="badge badge-red">${summary.errors} error${plural}</span>`;
+    } else if (summary.warnings > 0) {
       const plural = summary.warnings > 1 ? 's' : '';
-      return `<span class="badge badge-yellow">${summary.warnings} warning${plural}</span>`;
+      badge = `<span class="badge badge-yellow">${summary.warnings} warning${plural}</span>`;
+    } else {
+      return '<span class="badge badge-green">clean</span>';
     }
-    return '<span class="badge badge-green">clean</span>';
+
+    if (summary.messages.length > 0) {
+      const items = summary.messages
+        .map((m) => `<li>${escapeHtml(m)}</li>`)
+        .join('');
+      badge += `<ul class="validation-messages">${items}</ul>`;
+    }
+
+    return badge;
   }
 
   private buildProviderTable(providers: ProviderRow[]): string {
@@ -418,14 +422,4 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
     </style>`;
   }
 
-  private handleMessage(message: { command: string }): void {
-    switch (message.command) {
-      case 'applyAll':
-        vscode.commands.executeCommand('xcaffold.apply');
-        break;
-      case 'validate':
-        vscode.commands.executeCommand('xcaffold.validate');
-        break;
-    }
-  }
 }
