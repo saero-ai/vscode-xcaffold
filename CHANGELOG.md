@@ -2,6 +2,13 @@
 
 All notable changes to the xcaffold VS Code extension will be documented in this file.
 
+## [0.4.1](https://github.com/saero-ai/vscode-xcaffold/compare/vscode-xcaffold-v0.4.0...vscode-xcaffold-v0.4.1) (2026-05-15)
+
+
+### Bug Fixes
+
+* **ci:** use RELEASE_PAT for release-please to trigger publish ([c0ef8c5](https://github.com/saero-ai/vscode-xcaffold/commit/c0ef8c58a06121ad65f1b296747db7d0ad30f9f9))
+
 ## [0.4.0](https://github.com/saero-ai/vscode-xcaffold/compare/vscode-xcaffold-v0.3.0...vscode-xcaffold-v0.4.0) (2026-05-15)
 
 
