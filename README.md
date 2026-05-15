@@ -36,7 +36,7 @@ VS Code extension for authoring and managing xcaffold `.xcaf` manifests. Wraps t
 
 ## Requirements
 
-- **xcaffold CLI** (v0.5.0+): The extension requires the `xcaffold` binary installed and on PATH
+- **xcaffold CLI** (v0.3.0+): The extension requires the `xcaffold` binary installed and on PATH
 - **YAML Extension** (recommended): Install `redhat.vscode-yaml` for schema-driven autocomplete and hover docs
 
 ## Configuration
