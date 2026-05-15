@@ -14,7 +14,7 @@ import (
 
 func TestIntegration_GoldenManifest(t *testing.T) {
 	schemaPath := "../../schemas/xcaffold-schema.json"
-	goldenPath := "testdata/agent.xcaf"
+	goldenPath := filepath.Join("testdata", "agent.xcaf")
 
 	// 1. Read and parse golden manifest (frontmatter + body)
 	content, err := os.ReadFile(goldenPath)
