@@ -2,7 +2,7 @@
   "name": "vscode-xcaffold",
   "displayName": "xcaffold",
   "description": "xcaffold .xcaf manifest authoring — schema validation, autocomplete, and CLI commands",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "saero-ai",
   "icon": "logo.png",
   "license": "Apache-2.0",
