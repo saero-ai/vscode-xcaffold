@@ -15,7 +15,6 @@ import { runInitWizard } from './initWizardProvider';
 import { runImportPicker } from './importPickerProvider';
 import { CliDataSource } from './webview/dataSource';
 import { DiffPreviewProvider } from './diffPreviewProvider';
-import { FidelityProvider } from './fidelityProvider';
 import { StatusDashProvider } from './statusDashProvider';
 import { SchemaViewerProvider } from './schemaViewerProvider';
 import { XcafCodeLensProvider } from './codeLensProvider';
@@ -162,7 +161,7 @@ function registerCommands(
   statusBar: StatusBarProvider,
   dataSource: DataSource,
   xcafIndex: XcafIndex,
-): { refreshCommand: vscode.Disposable; graphCommand: vscode.Disposable; initWizardCommand: vscode.Disposable; importPickerCommand: vscode.Disposable; diffCommand: vscode.Disposable; fidelityCommand: vscode.Disposable; statusDashCommand: vscode.Disposable; schemaViewerCommand: vscode.Disposable } {
+): { refreshCommand: vscode.Disposable; graphCommand: vscode.Disposable; initWizardCommand: vscode.Disposable; importPickerCommand: vscode.Disposable; diffCommand: vscode.Disposable; statusDashCommand: vscode.Disposable; schemaViewerCommand: vscode.Disposable } {
   const refreshCommand = vscode.commands.registerCommand('xcaffold.refreshExplorer', () => {
     treeProvider.refresh();
     scheduleModelRefresh();
@@ -183,7 +182,7 @@ function registerCommands(
     }
   });
 
-  // Phase 2: Interactive commands
+  // Interactive commands
   const initWizardCommand = vscode.commands.registerCommand(
     'xcaffold.initWizard',
     async () => {
@@ -208,9 +207,8 @@ function registerCommands(
     }
   );
 
-  // Phase 3: Webview commands
+  // Webview commands
   let diffPreview: DiffPreviewProvider | undefined;
-  let fidelityProvider: FidelityProvider | undefined;
   let statusDashProvider: StatusDashProvider | undefined;
   let schemaViewerProvider: SchemaViewerProvider | undefined;
 
@@ -231,25 +229,6 @@ function registerCommands(
       }
       _diffPreview = diffPreview;
       diffPreview.show();
-    },
-  );
-
-  const fidelityCommand = vscode.commands.registerCommand(
-    'xcaffold.fidelity',
-    () => {
-      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-      if (!wsFolder) {
-        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
-        return;
-      }
-      if (!fidelityProvider) {
-        fidelityProvider = new FidelityProvider(
-          context.extensionUri,
-          dataSource,
-          wsFolder,
-        );
-      }
-      fidelityProvider.show();
     },
   );
 
@@ -291,7 +270,7 @@ function registerCommands(
     },
   );
 
-  return { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, fidelityCommand, statusDashCommand, schemaViewerCommand };
+  return { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, statusDashCommand, schemaViewerCommand };
 }
 
 /**
@@ -504,7 +483,7 @@ export async function activate(
   }
 
   // 8. Register custom commands
-  const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, fidelityCommand, statusDashCommand, schemaViewerCommand } = registerCommands(context, cli, treeProvider, scheduleModelRefresh, workspaceFolderPath, statusBar, dataSource, xcafIndex);
+  const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, statusDashCommand, schemaViewerCommand } = registerCommands(context, cli, treeProvider, scheduleModelRefresh, workspaceFolderPath, statusBar, dataSource, xcafIndex);
 
   // 8b. Register New Resource wizard (replaces the stub in commandProvider)
   const newResourceCommand = vscode.commands.registerCommand(
@@ -544,7 +523,6 @@ export async function activate(
     initWizardCommand,
     importPickerCommand,
     diffCommand,
-    fidelityCommand,
     statusDashCommand,
     schemaViewerCommand,
     newResourceCommand,

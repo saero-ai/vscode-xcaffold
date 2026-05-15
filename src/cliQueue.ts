@@ -14,7 +14,7 @@ export class CliOp {
  *
  * Write operations (apply, init, import) are serialized via an async mutex
  * so only one runs at a time. Read operations (validate, status, list,
- * fidelity, help, graph) run concurrently with no locking.
+ * help, graph) run concurrently with no locking.
  *
  * Output channel lines are prefixed with the command name to prevent
  * interleaving confusion on concurrent reads.
