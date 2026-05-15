@@ -37,8 +37,7 @@ All notable changes to the xcaffold VS Code extension will be documented in this
 
 ### Webview Panels
 - Diff preview — run `apply --dry-run` and preview changes before writing
-- Fidelity report — color-coded provider fidelity scores
-- Status dashboard — per-provider cards with drift indicators and apply buttons
+- Status dashboard — per-provider sync status, validation details, read-only
 - Schema viewer — pick a kind, view its field reference grouped by category
 
 ### Editor Integration

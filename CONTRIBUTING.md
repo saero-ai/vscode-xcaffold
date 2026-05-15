@@ -101,7 +101,6 @@ The extension is organized into discrete providers, each responsible for one sur
 | `src/codeLensProvider.ts` | Code lens actions on `.xcaf` files |
 | `src/definitionProvider.ts` | Go-to-definition for `.xcaf` resource references |
 | `src/diffPreviewProvider.ts` | Diff webview showing pending changes before apply |
-| `src/fidelityProvider.ts` | Fidelity note display for provider-unsupported fields |
 | `src/graphProvider.ts` | Dependency graph webview |
 | `src/importPickerProvider.ts` | Quick pick UI for selecting an import source |
 | `src/initWizardProvider.ts` | Multi-step wizard for initializing a new xcaffold project |
@@ -115,7 +114,7 @@ The extension is organized into discrete providers, each responsible for one sur
 
 ### Webviews
 
-Webviews (`diffPreviewProvider`, `graphProvider`, `schemaViewerProvider`, `statusDashProvider`, `initWizardProvider`) follow a shared base class in `src/webview/baseWebview.ts`. All webview HTML is generated in TypeScript — no separate HTML files. Content Security Policy is enforced on every webview.
+Webviews (`diffPreviewProvider`, `graphProvider`, `schemaViewerProvider`, `statusDashProvider`) follow a shared base class in `src/webview/baseWebview.ts`. All webview HTML is generated in TypeScript — no separate HTML files. Content Security Policy is enforced on every webview.
 
 ### JSON Schema
 

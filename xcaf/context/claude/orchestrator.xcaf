@@ -10,6 +10,36 @@ description: "Orchestrator context for xcaffold-vscode development — agent rou
 
 **Stack:** TypeScript (strict), esbuild, Mocha + ts-node, zero runtime deps, VS Code Extension API ^1.85.0
 
+## Git Workflow
+
+This is a public open-source repository. Branch names, commit messages, and merge history are permanently visible.
+
+### Branch Model
+
+- `main` — release branch. Merging to main triggers release-please, which creates a release PR with changelog. Merging the release PR tags a version and publishes to the VS Code Marketplace.
+- `develop` — integration branch. All feature work lands here first.
+- Feature branches use `feat/`, `fix/`, `refactor/`, `docs/`, `test/`, `chore/` prefixes with kebab-case names.
+
+### Merge Flow
+
+```
+feature branch ──► develop (local merge + push) ──► main (PR)
+```
+
+1. Create a feature branch from `develop`
+2. Implement, test, verify (`npm run typecheck && npm run test`)
+3. Merge locally into `develop` with `--no-ff` and push
+4. When ready to release: create a PR from `develop` to `main`
+5. Merging to `main` triggers release-please → tag → marketplace publish
+
+### Rules
+
+- NEVER push directly to `main` — always PR from `develop`
+- NEVER force-push to `main` or `develop`
+- NEVER use `--no-verify` to skip pre-commit hooks
+- NEVER include machine-specific paths (`/Volumes/`, `/Users/`) in commits
+- Commit messages: `type(scope): description` — no Co-Authored-By trailers
+
 ## Mode Detection
 
 Detect from user intent — do not ask:
@@ -64,4 +94,4 @@ npm run compile     # esbuild compilation
 - NEVER add runtime `dependencies` — zero deps policy
 - NEVER use webpack, rollup, or Jest — esbuild + Mocha only
 - NEVER use VS Code APIs beyond the declared `engines.vscode: ^1.85.0` without bumping that field
-- NEVER commit directly to `main` or `develop` — always branch and PR
+- NEVER push directly to `main` — always PR from `develop`
