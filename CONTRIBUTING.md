@@ -53,6 +53,22 @@ docs(contributing): update setup instructions
 test(cli-queue): add cancellation test cases
 ```
 
+### Commit Type Guide
+
+Use the correct type to prevent empty releases. Only `feat` and `fix` trigger version bumps and release creation.
+
+| Change | Type | Example |
+|--------|------|---------|
+| New user-facing feature | `feat` | `feat(tree-view): add import status indicator` |
+| Bug fix affecting extension behavior | `fix` | `fix(diagnostics): handle missing binary` |
+| CI/CD workflow changes | `chore` | `chore(ci): update Node version in CI` |
+| Documentation updates | `docs` | `docs: update setup instructions` |
+| Test additions or fixes | `test` | `test(cli-queue): add cancellation test` |
+| Code restructuring (no behavior change) | `refactor` | `refactor(webview): extract base class` |
+| Dependency updates | `chore` | `chore(deps): bump esbuild` |
+
+**Important:** `fix(ci)` and `fix(docs)` will trigger an unnecessary patch release. Use `chore(ci)` and `docs` instead — these do not create releases.
+
 ### Changelog
 
 Changelogs are generated automatically by [release-please](https://github.com/googleapis/release-please) from Conventional Commit messages. Do not edit `CHANGELOG.md` manually — your commit messages become the changelog entries. Write clear, user-facing commit descriptions.
