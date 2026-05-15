@@ -2,7 +2,7 @@
   "name": "vscode-xcaffold",
   "displayName": "xcaffold",
   "description": "xcaffold .xcaf manifest authoring — schema validation, autocomplete, and CLI commands",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "publisher": "saero-ai",
   "icon": "logo.png",
   "license": "Apache-2.0",
@@ -253,7 +253,16 @@
     "test": "npx ts-node src/test/runTests.ts",
     "pretest": "npm run typecheck"
   },
-  "keywords": ["claude-code", "cursor", "xcaf", "agent-configuration", "CLAUDE.md", "cursorrules", "ai-agent", "config-management"],
+  "keywords": [
+    "claude-code",
+    "cursor",
+    "xcaf",
+    "agent-configuration",
+    "CLAUDE.md",
+    "cursorrules",
+    "ai-agent",
+    "config-management"
+  ],
   "author": "",
   "bugs": {
     "url": "https://github.com/saero-ai/vscode-xcaffold/issues"
