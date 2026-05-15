@@ -248,12 +248,15 @@
     "test": "npx ts-node src/test/runTests.ts",
     "pretest": "npm run typecheck"
   },
-  "keywords": [],
+  "keywords": ["claude-code", "cursor", "xcaf", "agent-configuration", "CLAUDE.md", "cursorrules", "ai-agent", "config-management"],
   "author": "",
   "bugs": {
     "url": "https://github.com/saero-ai/vscode-xcaffold/issues"
   },
   "homepage": "https://github.com/saero-ai/vscode-xcaffold#readme",
+  "overrides": {
+    "serialize-javascript": "^7.0.5"
+  },
   "devDependencies": {
     "@types/d3": "^7.4.3",
     "@types/mocha": "^10.0.10",
@@ -262,7 +265,7 @@
     "@vscode/vsce": "^3.9.1",
     "d3": "^7.9.0",
     "esbuild": "^0.28.0",
-    "mocha": "^11.3.0",
+    "mocha": "^11.7.5",
     "mock-require": "^3.0.3",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
