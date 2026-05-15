@@ -12,48 +12,9 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v4
-        id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-
-  publish:
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v6
-
-    - name: Use Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version: '20'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Compile (production)
-      run: npm run compile:production
-
-    - name: Run tests
-      run: npm test
-
-    - name: Publish to VS Code Marketplace
-      run: npx vsce publish --no-dependencies
-      env:
-        VSCE_PAT: ${{ secrets.VSCE_PAT }}
-
-    - name: Package VSIX
-      run: npx vsce package --no-dependencies -o xcaffold-vscode.vsix
-
-    - name: Upload VSIX to release
-      run: gh release upload "${{ needs.release-please.outputs.tag_name }}" xcaffold-vscode.vsix
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
