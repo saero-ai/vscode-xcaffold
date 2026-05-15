@@ -2,6 +2,19 @@
 
 All notable changes to the xcaffold VS Code extension will be documented in this file.
 
+## [0.2.1] - 2026-05-15
+
+### Packaging
+- Add .vscodeignore to exclude development artifacts from published extension
+- VSIX size reduced from 1.5MB to ~500KB
+- Add automated publish workflow for GitHub releases
+
+### Infrastructure
+- Switch license from MIT to Apache-2.0 for consistency with xcaffold CLI
+- Bump GitHub Actions to latest versions (checkout v6, setup-node v6, upload-artifact v7)
+- Update dependencies to resolve security advisories
+- Make xcaf manifests provider-agnostic for open-source contributors
+
 ## [0.2.0] - 2026-05-04
 
 ### Build Infrastructure
@@ -24,8 +37,7 @@ All notable changes to the xcaffold VS Code extension will be documented in this
 
 ### Webview Panels
 - Diff preview — run `apply --dry-run` and preview changes before writing
-- Fidelity report — color-coded provider fidelity scores
-- Status dashboard — per-provider cards with drift indicators and apply buttons
+- Status dashboard — per-provider sync status, validation details, read-only
 - Schema viewer — pick a kind, view its field reference grouped by category
 
 ### Editor Integration

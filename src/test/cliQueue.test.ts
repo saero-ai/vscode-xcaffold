@@ -103,7 +103,6 @@ suite('CliQueue', () => {
     assert.strictEqual(CliOp.classify('validate'), 'read');
     assert.strictEqual(CliOp.classify('status'), 'read');
     assert.strictEqual(CliOp.classify('list'), 'read');
-    assert.strictEqual(CliOp.classify('fidelity'), 'read');
     assert.strictEqual(CliOp.classify('help'), 'read');
     assert.strictEqual(CliOp.classify('graph'), 'read');
     assert.strictEqual(CliOp.classify('unknown'), 'read');

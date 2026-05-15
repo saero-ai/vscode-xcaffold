@@ -2,12 +2,12 @@
   "name": "vscode-xcaffold",
   "displayName": "xcaffold",
   "description": "xcaffold .xcaf manifest authoring — schema validation, autocomplete, and CLI commands",
-  "version": "0.2.0",
+  "version": "0.2.3",
   "publisher": "saero-ai",
   "icon": "logo.png",
   "license": "Apache-2.0",
   "xcaffold": {
-    "minCliVersion": "0.5.0"
+    "minCliVersion": "0.3.0"
   },
   "repository": {
     "type": "git",
@@ -113,11 +113,6 @@
         "category": "xcaffold"
       },
       {
-        "command": "xcaffold.fidelity",
-        "title": "xcaffold: Fidelity Report",
-        "category": "xcaffold"
-      },
-      {
         "command": "xcaffold.statusDash",
         "title": "xcaffold: Status Dashboard",
         "category": "xcaffold"
@@ -146,6 +141,11 @@
         "command": "xcaffold.deleteResource",
         "title": "xcaffold: Delete Resource",
         "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.refreshDashboard",
+        "title": "Refresh Status",
+        "icon": "$(refresh)"
       }
     ],
     "viewsContainers": {
@@ -236,6 +236,11 @@
           "command": "xcaffold.refreshExplorer",
           "when": "view == xcaffoldExplorer",
           "group": "navigation"
+        },
+        {
+          "command": "xcaffold.refreshDashboard",
+          "when": "view == xcaffoldStatusDash",
+          "group": "navigation"
         }
       ]
     }
@@ -248,12 +253,15 @@
     "test": "npx ts-node src/test/runTests.ts",
     "pretest": "npm run typecheck"
   },
-  "keywords": [],
+  "keywords": ["claude-code", "cursor", "xcaf", "agent-configuration", "CLAUDE.md", "cursorrules", "ai-agent", "config-management"],
   "author": "",
   "bugs": {
     "url": "https://github.com/saero-ai/vscode-xcaffold/issues"
   },
   "homepage": "https://github.com/saero-ai/vscode-xcaffold#readme",
+  "overrides": {
+    "serialize-javascript": "^7.0.5"
+  },
   "devDependencies": {
     "@types/d3": "^7.4.3",
     "@types/mocha": "^10.0.10",
@@ -262,7 +270,7 @@
     "@vscode/vsce": "^3.9.1",
     "d3": "^7.9.0",
     "esbuild": "^0.28.0",
-    "mocha": "^11.3.0",
+    "mocha": "^11.7.5",
     "mock-require": "^3.0.3",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"

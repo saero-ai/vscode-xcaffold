@@ -49,7 +49,9 @@ test(cli-queue): add cancellation test cases
 
 ### Changelog
 
-Update `CHANGELOG.md` for every user-facing change. Add entries under `[Unreleased]`. For breaking changes, add both a `Breaking Changes` entry and a `Migration` entry.
+Changelogs are generated automatically by [release-please](https://github.com/googleapis/release-please) from Conventional Commit messages. Do not edit `CHANGELOG.md` manually — your commit messages become the changelog entries. Write clear, user-facing commit descriptions.
+
+For breaking changes, include a `BREAKING CHANGE:` footer in the commit message body.
 
 ### PR Checklist
 
@@ -58,7 +60,6 @@ Update `CHANGELOG.md` for every user-facing change. Add entries under `[Unreleas
 - [ ] No new runtime dependencies added (`dependencies` in `package.json` must not grow)
 - [ ] Tree view and webview changes tested manually in the Extension Development Host
 - [ ] `README.md` updated if user-facing behavior changed
-- [ ] `CHANGELOG.md` updated
 
 ## Testing
 
@@ -100,7 +101,6 @@ The extension is organized into discrete providers, each responsible for one sur
 | `src/codeLensProvider.ts` | Code lens actions on `.xcaf` files |
 | `src/definitionProvider.ts` | Go-to-definition for `.xcaf` resource references |
 | `src/diffPreviewProvider.ts` | Diff webview showing pending changes before apply |
-| `src/fidelityProvider.ts` | Fidelity note display for provider-unsupported fields |
 | `src/graphProvider.ts` | Dependency graph webview |
 | `src/importPickerProvider.ts` | Quick pick UI for selecting an import source |
 | `src/initWizardProvider.ts` | Multi-step wizard for initializing a new xcaffold project |
@@ -114,7 +114,7 @@ The extension is organized into discrete providers, each responsible for one sur
 
 ### Webviews
 
-Webviews (`diffPreviewProvider`, `graphProvider`, `schemaViewerProvider`, `statusDashProvider`, `initWizardProvider`) follow a shared base class in `src/webview/baseWebview.ts`. All webview HTML is generated in TypeScript — no separate HTML files. Content Security Policy is enforced on every webview.
+Webviews (`diffPreviewProvider`, `graphProvider`, `schemaViewerProvider`, `statusDashProvider`) follow a shared base class in `src/webview/baseWebview.ts`. All webview HTML is generated in TypeScript — no separate HTML files. Content Security Policy is enforced on every webview.
 
 ### JSON Schema
 
@@ -150,8 +150,7 @@ A breaking change requires existing users to modify their workflow, configuratio
 
 1. Deprecate with a warning in the current release
 2. Remove in the following release
-3. Add a `BREAKING CHANGE:` footer to the commit message
-4. Add `Breaking Changes` and `Migration` entries to `CHANGELOG.md`
+3. Add a `BREAKING CHANGE:` footer to the commit message — release-please will generate the changelog entry
 
 ## Good First Issues
 
