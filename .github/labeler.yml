@@ -1,0 +1,28 @@
+area/extension:
+  - changed-files:
+    - any-glob-to-any-file: 'src/**/*.ts'
+    - all-globs-to-all-files: '!src/test/**'
+    - all-globs-to-all-files: '!src/webview/**'
+
+area/webview:
+  - changed-files:
+    - any-glob-to-any-file: 'src/webview/**'
+    - any-glob-to-any-file: 'src/*Provider.ts'
+
+area/test:
+  - changed-files:
+    - any-glob-to-any-file: 'src/test/**'
+
+area/ci:
+  - changed-files:
+    - any-glob-to-any-file: '.github/**'
+
+area/schema:
+  - changed-files:
+    - any-glob-to-any-file: 'schemas/**'
+    - any-glob-to-any-file: 'syntaxes/**'
+
+area/docs:
+  - changed-files:
+    - any-glob-to-any-file: '*.md'
+    - any-glob-to-any-file: 'docs/**'

@@ -20,7 +20,10 @@ jobs:
         
     - name: Install dependencies
       run: npm install
-      
+
+    - name: Audit dependencies
+      run: npm audit --audit-level=moderate
+
     - name: Compile
       run: npm run compile
       

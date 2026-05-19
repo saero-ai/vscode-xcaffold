@@ -3,17 +3,50 @@ name: PR Checks
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [main]
+    branches: [main, develop]
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
+  label:
+    name: Auto-label
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/labeler@v6
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  size-label:
+    name: Size label
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: codelytv/pr-size-labeler@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          xs_label: 'size/XS'
+          xs_max_size: 9
+          s_label: 'size/S'
+          s_max_size: 49
+          m_label: 'size/M'
+          m_max_size: 199
+          l_label: 'size/L'
+          l_max_size: 499
+          xl_label: 'size/XL'
+          fail_if_xl: false
+
   branch-gate:
     name: PR branch policy
+    if: github.base_ref == 'main'
     runs-on: ubuntu-latest
     steps:
-      - name: Enforce develop-only merges to main
+      - name: Enforce develop-only PRs to main
         shell: bash
         env:
           HEAD_BRANCH: ${{ github.head_ref }}
@@ -24,3 +57,15 @@ jobs:
           fi
           echo "::error::PRs to main must come from the develop branch. Please target develop instead, or merge your changes into develop first."
           exit 1
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm install
+      - run: npm audit --audit-level=moderate
