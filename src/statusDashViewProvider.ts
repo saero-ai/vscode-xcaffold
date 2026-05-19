@@ -4,9 +4,20 @@
 // Coexists with the full-panel StatusDashProvider — this is the primary
 // status surface embedded in the xcaffold sidebar.
 
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { generateNonce, escapeHtml } from './webview/baseWebview';
 import { DataSource } from './webview/dataSource';
+
+/** Maps xcaffold provider names to their output directory names. */
+const PROVIDER_OUTPUT_DIRS: Record<string, string> = {
+  claude: '.claude',
+  cursor: '.cursor',
+  gemini: '.gemini',
+  copilot: '.github',
+  antigravity: '.agents',
+  codex: '.codex',
+};
 
 /** Debounce interval for auto-refresh on .xcaf save (ms). */
 const REFRESH_DEBOUNCE_MS = 2000;
@@ -49,6 +60,8 @@ th { font-weight: 600; font-size: 0.85em; opacity: 0.7; }
 .badge-red { background: var(--error); color: #fff; }
 .status-ok { color: var(--success); }
 .status-warn { color: var(--warning); }
+.status-unmanaged { color: var(--accent); }
+.status-muted { opacity: 0.5; }
 .validation-messages {
   font-size: 0.8em; margin-top: 4px; padding-left: 16px; opacity: 0.85;
   list-style: none;
@@ -61,6 +74,7 @@ th { font-weight: 600; font-size: 0.85em; opacity: 0.7; }
 /** Parsed result from `xcaffold status` tabular output. */
 export interface StatusInfo {
   projectName: string;
+  blueprint: string;
   lastApplied: string;
   providers: ProviderRow[];
 }
@@ -70,6 +84,7 @@ export interface ProviderRow {
   name: string;
   files: number;
   status: string;
+  state: 'synced' | 'drifted' | 'unmanaged' | 'not-applied';
 }
 
 /** Parsed result from `xcaffold validate` output. */
@@ -93,6 +108,7 @@ export interface ValidateSummary {
 export function parseStatusOutput(stdout: string): StatusInfo {
   const result: StatusInfo = {
     projectName: '',
+    blueprint: '',
     lastApplied: '',
     providers: [],
   };
@@ -106,15 +122,23 @@ export function parseStatusOutput(stdout: string): StatusInfo {
   // First non-empty line: "project-name  .  last applied <timestamp>"
   const headerLine = lines.find((l) => l.trim().length > 0);
   if (headerLine) {
-    const headerMatch = /^(\S+)\s+\.\s+last applied\s+(.+)$/i.exec(
+    const blueprintHeaderMatch = /^(\S+)\s+\.\s+blueprint:\s+(\S+)\s+\.\s+last applied\s+(.+)$/i.exec(
       headerLine.trim(),
     );
-    if (headerMatch) {
-      result.projectName = headerMatch[1];
-      result.lastApplied = headerMatch[2].trim();
+    if (blueprintHeaderMatch) {
+      result.projectName = blueprintHeaderMatch[1];
+      result.blueprint = blueprintHeaderMatch[2];
+      result.lastApplied = blueprintHeaderMatch[3].trim();
     } else {
-      // Fallback: use entire first line as project name
-      result.projectName = headerLine.trim();
+      const headerMatch = /^(\S+)\s+\.\s+last applied\s+(.+)$/i.exec(
+        headerLine.trim(),
+      );
+      if (headerMatch) {
+        result.projectName = headerMatch[1];
+        result.lastApplied = headerMatch[2].trim();
+      } else {
+        result.projectName = headerLine.trim();
+      }
     }
   }
 
@@ -140,10 +164,13 @@ export function parseStatusOutput(stdout: string): StatusInfo {
     // Parse: "antigravity       12   ok synced"
     const rowMatch = /^(\S+)\s+(\d+)\s+(.+)$/.exec(trimmed);
     if (rowMatch) {
+      const status = rowMatch[3].trim();
+      const isDrift = /!!|drift|modified/i.test(status);
       result.providers.push({
         name: rowMatch[1],
         files: parseInt(rowMatch[2], 10),
-        status: rowMatch[3].trim(),
+        status,
+        state: isDrift ? 'drifted' : 'synced',
       });
     }
   }
@@ -152,9 +179,35 @@ export function parseStatusOutput(stdout: string): StatusInfo {
 }
 
 /**
+ * parseDeclaredTargets extracts provider target names from
+ * `project.xcaf` file content. Looks for a `targets:` key followed
+ * by a YAML-style list of `- name` entries.
+ */
+export function parseDeclaredTargets(content: string): string[] {
+  const targets: string[] = [];
+  let inTargets = false;
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (/^targets:\s*$/.test(trimmed)) {
+      inTargets = true;
+      continue;
+    }
+    if (inTargets) {
+      const match = /^-\s+(\S+)$/.exec(trimmed);
+      if (match) {
+        targets.push(match[1]);
+      } else if (trimmed && !trimmed.startsWith('#')) {
+        break;
+      }
+    }
+  }
+  return targets;
+}
+
+/**
  * parseValidateSummary counts errors and warnings from
- * `xcaffold validate` text output. Lines with `!!` are errors;
- * lines with `warn` (case-insensitive) are warnings.
+ * `xcaffold validate` text output. Uses prefix-based detection:
+ * `!!` prefix = error, `**` prefix = warning/skipped, `ok` prefix = pass.
  */
 export function parseValidateSummary(stdout: string): ValidateSummary {
   const summary: ValidateSummary = { errors: 0, warnings: 0, messages: [] };
@@ -168,13 +221,22 @@ export function parseValidateSummary(stdout: string): ValidateSummary {
     if (!trimmed) {
       continue;
     }
-    if (trimmed.includes('!!') || /\berror\b/i.test(trimmed)) {
+    if (trimmed.startsWith('!!')) {
       summary.errors++;
       const msg = trimmed.replace(/^!!\s*/, '').trim();
       if (msg) {
         summary.messages.push(msg);
       }
-    } else if (/\bwarn(ing)?\b/i.test(trimmed)) {
+    } else if (trimmed.startsWith('**')) {
+      summary.warnings++;
+      const msg = trimmed.replace(/^\*\*\s*/, '').trim();
+      if (msg) {
+        summary.messages.push(msg);
+      }
+    } else if (/^error:/i.test(trimmed)) {
+      summary.errors++;
+      summary.messages.push(trimmed);
+    } else if (/^warn(ing)?:/i.test(trimmed)) {
       summary.warnings++;
       const msg = trimmed.replace(/^warn(ing)?:?\s*/i, '').trim();
       if (msg) {
@@ -298,16 +360,40 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
     const statusInfo = await this.fetchStatusInfo();
     const validateSummary = await this.fetchValidateSummary();
 
+    // Merge declared targets that haven't been applied yet
+    const declaredTargets = await this.fetchDeclaredTargets();
+    const appliedNames = new Set(statusInfo.providers.map(p => p.name));
+
+    for (const target of declaredTargets) {
+      if (!appliedNames.has(target)) {
+        const dirName = PROVIDER_OUTPUT_DIRS[target] ?? `.${target}`;
+        const dirExists = await this.checkDirExists(
+          path.join(this.workspaceFolder, dirName),
+        );
+        statusInfo.providers.push({
+          name: target,
+          files: 0,
+          status: dirExists ? 'unmanaged' : 'not applied',
+          state: dirExists ? 'unmanaged' : 'not-applied',
+        });
+      }
+    }
+
     const projectName = statusInfo.projectName || 'xcaffold project';
     const lastApplied = statusInfo.lastApplied || 'unknown';
 
     const validationBadge = this.buildValidationBadge(validateSummary);
     const providerTable = this.buildProviderTable(statusInfo.providers);
 
+    const blueprintLine = statusInfo.blueprint
+      ? `<p class="meta">Blueprint: <strong>${escapeHtml(statusInfo.blueprint)}</strong></p>`
+      : '';
+
     return `
       <div class="section">
         <h2>${escapeHtml(projectName)}</h2>
         <p class="meta">Last applied: ${escapeHtml(lastApplied)}</p>
+        ${blueprintLine}
       </div>
 
       <div class="section">
@@ -334,7 +420,7 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
       if (typeof stdout === 'string' && stdout.trim()) {
         return parseStatusOutput(stdout);
       }
-      return { projectName: '', lastApplied: '', providers: [] };
+      return { projectName: '', blueprint: '', lastApplied: '', providers: [] };
     }
   }
 
@@ -351,6 +437,29 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
         return parseValidateSummary(stdout);
       }
       return { errors: 0, warnings: 0, messages: [] };
+    }
+  }
+
+  private async fetchDeclaredTargets(): Promise<string[]> {
+    try {
+      const projectXcafUri = vscode.Uri.file(
+        path.join(this.workspaceFolder, 'project.xcaf'),
+      );
+      const content = Buffer.from(
+        await vscode.workspace.fs.readFile(projectXcafUri),
+      ).toString('utf-8');
+      return parseDeclaredTargets(content);
+    } catch {
+      return [];
+    }
+  }
+
+  private async checkDirExists(dirPath: string): Promise<boolean> {
+    try {
+      const stat = await vscode.workspace.fs.stat(vscode.Uri.file(dirPath));
+      return (stat.type & vscode.FileType.Directory) !== 0;
+    } catch {
+      return false;
     }
   }
 
@@ -400,10 +509,25 @@ export class StatusDashViewProvider implements vscode.WebviewViewProvider {
 
     const rows = providers
       .map((p) => {
-        const cls = p.status.includes('ok') ? 'status-ok' : 'status-warn';
+        let cls: string;
+        switch (p.state) {
+          case 'synced':
+            cls = 'status-ok';
+            break;
+          case 'drifted':
+            cls = 'status-warn';
+            break;
+          case 'unmanaged':
+            cls = 'status-unmanaged';
+            break;
+          case 'not-applied':
+            cls = 'status-muted';
+            break;
+        }
+        const filesDisplay = p.files > 0 ? String(p.files) : '—';
         return `<tr>
           <td>${escapeHtml(p.name)}</td>
-          <td>${p.files}</td>
+          <td>${filesDisplay}</td>
           <td class="${cls}">${escapeHtml(p.status)}</td>
         </tr>`;
       })

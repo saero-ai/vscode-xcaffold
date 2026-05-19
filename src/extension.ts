@@ -3,14 +3,14 @@ import * as path from 'path';
 import { XcaffoldCli } from './xcaffoldCli';
 import { registerDiagnosticProvider } from './diagnosticProvider';
 import { registerCommandProvider } from './commandProvider';
-import { ObjectExplorerProvider } from './treeViewProvider';
+import { ObjectExplorerProvider, ExplorerNode } from './treeViewProvider';
 import { XcaffoldGraphProvider } from './graphProvider';
 import { disposeOutputChannel, getOutputChannel } from './outputChannel';
 import { checkMinimumVersion } from './versionCheck';
 import { XcafIndex } from './xcafIndex';
 import { XcafProjectModel, FsAdapter } from './xcafProjectModel';
 import type { DataSource } from './webview/dataSource';
-import { StatusBarProvider } from './statusBarProvider';
+import { StatusBarProvider, XcafDocumentInfoProvider } from './statusBarProvider';
 import { runInitWizard } from './initWizardProvider';
 import { runImportPicker } from './importPickerProvider';
 import { CliDataSource } from './webview/dataSource';
@@ -139,12 +139,14 @@ function registerProviders(
   model: XcafProjectModel,
   workspaceFolderPath: string | undefined,
   context: vscode.ExtensionContext
-): { treeProvider: ObjectExplorerProvider; diagnosticProvider: vscode.Disposable; commandProvider: vscode.Disposable; treeView: vscode.Disposable } {
+): { treeProvider: ObjectExplorerProvider; diagnosticProvider: vscode.Disposable; commandProvider: vscode.Disposable; treeView: vscode.TreeView<ExplorerNode> } {
   const diagnosticProvider = registerDiagnosticProvider(cli);
   const commandProvider = registerCommandProvider(cli);
 
   const treeProvider = new ObjectExplorerProvider(model, cli, workspaceFolderPath);
-  const treeView = vscode.window.registerTreeDataProvider('xcaffoldExplorer', treeProvider);
+  const treeView = vscode.window.createTreeView('xcaffoldExplorer', {
+    treeDataProvider: treeProvider,
+  });
 
   return { treeProvider, diagnosticProvider, commandProvider, treeView };
 }
@@ -368,6 +370,7 @@ export async function activate(
   const { treeProvider: tp, diagnosticProvider, commandProvider, treeView } = registerProviders(cli, xcafIndex, model, workspaceFolderPath, context);
   treeProvider = tp;
   const statusBar = new StatusBarProvider();
+  const docInfoBar = new XcafDocumentInfoProvider();
   initStatusBar(cli, workspaceFolderPath || '', statusBar);
 
   // 6b. Register CodeLens and Definition providers for .xcaf files
@@ -463,6 +466,17 @@ export async function activate(
     context.subscriptions.push(miniGraphProvider);
   }
 
+  // 7b-ii-a. Wire resource explorer selection to harness graph focus
+  if (miniGraphProvider) {
+    const treeSelectionListener = treeView.onDidChangeSelection((e) => {
+      const item = e.selection[0];
+      if (item && item.data && item.data.type === 'resource') {
+        miniGraphProvider.focusNode(`${item.data.kind}:${item.data.name}`);
+      }
+    });
+    context.subscriptions.push(treeSelectionListener);
+  }
+
   // 7b-iii. Register refreshDashboard command for post-apply refresh
   const refreshDashboardCommand = vscode.commands.registerCommand(
     'xcaffold.refreshDashboard',
@@ -506,6 +520,7 @@ export async function activate(
     refreshCommand,
     graphCommand,
     statusBar,
+    docInfoBar,
     saveWatcher,
     deleteWatcher,
     codeLensProvider,

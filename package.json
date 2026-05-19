@@ -7,7 +7,7 @@
   "icon": "logo.png",
   "license": "Apache-2.0",
   "xcaffold": {
-    "minCliVersion": "0.3.0"
+    "minCliVersion": "0.7.1"
   },
   "repository": {
     "type": "git",
@@ -170,7 +170,7 @@
         },
         {
           "id": "xcaffoldMiniGraph",
-          "name": "Dependencies",
+          "name": "Harness Graph",
           "type": "webview"
         }
       ]
@@ -243,7 +243,15 @@
           "group": "navigation"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "xcaffold.apply",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a",
+        "when": "resourceExtname == .xcaf"
+      }
+    ]
   },
   "scripts": {
     "compile": "node esbuild.config.mjs",
@@ -251,7 +259,9 @@
     "watch": "node esbuild.config.mjs --watch",
     "typecheck": "tsc -p ./ --noEmit",
     "test": "npx ts-node src/test/runTests.ts",
-    "pretest": "npm run typecheck"
+    "pretest": "npm run typecheck",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix"
   },
   "keywords": [
     "claude-code",
@@ -276,9 +286,12 @@
     "@types/mocha": "^10.0.10",
     "@types/mock-require": "^3.0.0",
     "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.4",
+    "@typescript-eslint/parser": "^8.59.4",
     "@vscode/vsce": "^3.9.1",
     "d3": "^7.9.0",
     "esbuild": "^0.28.0",
+    "eslint": "^10.4.0",
     "mocha": "^11.7.5",
     "mock-require": "^3.0.3",
     "ts-node": "^10.9.2",
