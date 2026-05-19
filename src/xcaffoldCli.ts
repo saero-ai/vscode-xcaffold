@@ -118,7 +118,8 @@ export class XcaffoldCli {
           reject(
             new Error(
               `xcaffold binary not found at '${this.resolvedPath}'. ` +
-              'Please ensure it is installed and on your PATH.'
+              'Install via: brew install saero-ai/tap/xcaffold ' +
+              'or: go install github.com/saero-ai/xcaffold@latest'
             )
           );
         } else {
