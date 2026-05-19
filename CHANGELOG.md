@@ -2,6 +2,21 @@
 
 All notable changes to the xcaffold VS Code extension will be documented in this file.
 
+## [0.5.0](https://github.com/saero-ai/vscode-xcaffold/compare/vscode-xcaffold-v0.4.0...vscode-xcaffold-v0.5.0) (2026-05-19)
+
+
+### Features
+
+* **extension:** align with xcaffold CLI v0.7.1 ([fd6e63c](https://github.com/saero-ai/vscode-xcaffold/commit/fd6e63cc2e2f4600687e22fea8c14226f03860ec))
+* **extension:** align with xcaffold CLI v0.7.1 ([8ca8e82](https://github.com/saero-ai/vscode-xcaffold/commit/8ca8e821b600434444a57457dc1258987ad30fd4))
+* **extension:** interactive harness graph in sidebar ([4a161c1](https://github.com/saero-ai/vscode-xcaffold/commit/4a161c1dbc4b9f723aa831e82729a52ccea5088e))
+* **extension:** upgrade sidebar graph to full interactive harness graph ([ac6205f](https://github.com/saero-ai/vscode-xcaffold/commit/ac6205fca796f409b70f3e32617fd014b5b1ac64))
+
+
+### Bug Fixes
+
+* **ci:** resolve moderate dependency vulnerability in brace-expansion ([ddf8ce0](https://github.com/saero-ai/vscode-xcaffold/commit/ddf8ce046f1e4b5423a2a3a55c715c2a2e725531))
+
 ## [0.4.0](https://github.com/saero-ai/vscode-xcaffold/compare/vscode-xcaffold-v0.3.0...vscode-xcaffold-v0.4.0) (2026-05-15)
 
 
