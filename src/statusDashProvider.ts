@@ -1,9 +1,8 @@
 // src/statusDashProvider.ts
 //
-// R-11: Status dashboard webview. Runs `xcaffold status --format json`
-// (preferred) or parses text (fallback). Shows per-provider cards with
-// name, status icon, last applied, file count, drift indicator, and
-// an "Apply" button per card.
+// Status dashboard webview. Runs `xcaffold status` and parses text
+// output. Shows per-provider cards with name, status icon, last
+// applied, file count, drift indicator, and an "Apply" button per card.
 
 import * as vscode from 'vscode';
 import { BaseWebview, escapeHtml } from './webview/baseWebview';
@@ -25,34 +24,13 @@ export function driftIcon(drifted: boolean): string {
 }
 
 /**
- * parseStatusDashOutput extracts per-provider status from CLI output.
- * Tries JSON first, falls back to text block parsing.
+ * parseStatusDashOutput extracts per-provider status from CLI text output.
+ * Parses "Provider: xxx" blocks emitted by `xcaffold status`.
  */
 export function parseStatusDashOutput(stdout: string): ProviderStatus[] {
   if (!stdout.trim()) return [];
 
-  // Try JSON parse first
-  try {
-    const parsed = JSON.parse(stdout);
-    if (parsed.providers && Array.isArray(parsed.providers)) {
-      return parsed.providers.map((p: any) => ({
-        name: p.name || p.provider || '',
-        status: p.status || 'unknown',
-        lastApplied: p.lastApplied || p.last_applied || null,
-        fileCount:
-          typeof p.fileCount === 'number'
-            ? p.fileCount
-            : typeof p.file_count === 'number'
-              ? p.file_count
-              : 0,
-        drift: p.drift === true || p.drift === 'drifted',
-      }));
-    }
-  } catch {
-    // Not JSON — fall through to text parsing
-  }
-
-  // Text fallback: parse "Provider: xxx" blocks
+  // Parse "Provider: xxx" blocks
   const lines = stdout.split('\n');
   const providers: ProviderStatus[] = [];
   let current: Partial<ProviderStatus> | null = null;
@@ -154,24 +132,15 @@ export class StatusDashProvider extends BaseWebview {
   }
 
   protected async getHtmlBody(webview: vscode.Webview, nonce: string): Promise<string> {
-    // Try --format json first, fall back to text
     let stdout: string;
     try {
       const result = await this.dataSource.fetch(
-        ['status', '--format', 'json'],
+        ['status'],
         this.workspaceFolder,
       );
       stdout = result.stdout;
-    } catch {
-      try {
-        const result = await this.dataSource.fetch(
-          ['status'],
-          this.workspaceFolder,
-        );
-        stdout = result.stdout;
-      } catch (err: any) {
-        return `<div class="error">Failed to run status: ${escapeHtml(err.message)}</div>`;
-      }
+    } catch (err: any) {
+      return `<div class="error">Failed to run status: ${escapeHtml(err.message)}</div>`;
     }
 
     const providers = parseStatusDashOutput(stdout);

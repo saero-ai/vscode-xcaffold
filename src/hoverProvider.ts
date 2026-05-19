@@ -113,11 +113,30 @@ export function formatFieldHover(field: SchemaField): string {
   return parts.join('\n');
 }
 
+/** Top-level field summary for each resource kind. */
+const KIND_FIELD_SUMMARY: Record<string, string[]> = {
+  agent: ['model', 'tools', 'references', 'targets'],
+  skill: ['trigger', 'allowed-tools', 'references'],
+  rule: ['always-apply', 'targets'],
+  workflow: ['steps', 'triggers'],
+  mcp: ['command', 'args', 'env', 'targets'],
+  project: ['vars', 'providers', 'blueprints'],
+  settings: ['permission-mode', 'allowed-tools'],
+  hooks: ['pre-tool-use', 'post-tool-use', 'notification'],
+  global: ['providers'],
+  policy: ['rules', 'enforcement'],
+  blueprint: ['include', 'exclude', 'depends-on'],
+};
+
 /** Format a kind description for hover display. */
 function formatKindHover(kindValue: string): string | null {
   const desc = KIND_DESCRIPTIONS[kindValue];
   if (!desc) return null;
-  return `**kind: ${kindValue}**\n\n${desc}`;
+  const fields = KIND_FIELD_SUMMARY[kindValue];
+  const fieldLine = fields?.length
+    ? `\n\n**Common fields:** \`${fields.join('`, `')}\``
+    : '';
+  return `**kind: ${kindValue}**\n\n${desc}${fieldLine}`;
 }
 
 /**

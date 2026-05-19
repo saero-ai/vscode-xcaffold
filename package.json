@@ -7,7 +7,7 @@
   "icon": "logo.png",
   "license": "Apache-2.0",
   "xcaffold": {
-    "minCliVersion": "0.3.0"
+    "minCliVersion": "0.7.1"
   },
   "repository": {
     "type": "git",
@@ -243,7 +243,15 @@
           "group": "navigation"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "xcaffold.apply",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a",
+        "when": "resourceExtname == .xcaf"
+      }
+    ]
   },
   "scripts": {
     "compile": "node esbuild.config.mjs",

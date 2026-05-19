@@ -148,6 +148,24 @@ export async function scanXcafDirectory(
     const resources: XcafResource[] = [];
 
     for (const [resourceName, resourceType] of resourceEntries) {
+      // Flat-file kinds: .xcaf files sitting directly in the kind directory
+      if (resourceType === FILE_TYPE_FILE) {
+        if (resourceName.endsWith('.xcaf')) {
+          const name = resourceName.slice(0, -'.xcaf'.length);
+          // Skip override-style filenames (e.g. "blueprint.claude.xcaf")
+          if (!name.includes('.')) {
+            resources.push({
+              name,
+              kind,
+              baseManifest: path.join(kindDirPath, resourceName),
+              overrides: [],
+              artifactDirs: [],
+            });
+          }
+        }
+        continue;
+      }
+
       if (resourceType !== FILE_TYPE_DIR) {
         continue;
       }

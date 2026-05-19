@@ -501,6 +501,100 @@ suite('xcafProjectModel', () => {
       assert.strictEqual(resource.artifactDirs[0].files.length, 1);
       assert.strictEqual(resource.artifactDirs[0].files[0], 'file1.md');
     });
+
+    test('flat .xcaf files in kind directory are discovered as resources', async () => {
+      const xcafRoot = '/workspace/xcaf';
+      const fs = makeMockFs({
+        '/workspace/xcaf': [['blueprints', DIR]],
+        '/workspace/xcaf/blueprints': [
+          ['code-quality.xcaf', FILE],
+          ['documentation.xcaf', FILE],
+        ],
+      });
+
+      const groups = await scanXcafDirectory(xcafRoot, fs);
+      const bpGroup = groups.find(g => g.kind === 'blueprint');
+      assert.ok(bpGroup, 'blueprint group should exist');
+      assert.strictEqual(bpGroup.resources.length, 2);
+      const names = bpGroup.resources.map(r => r.name).sort();
+      assert.deepStrictEqual(names, ['code-quality', 'documentation']);
+    });
+
+    test('flat .xcaf resources have correct baseManifest and empty overrides/artifactDirs', async () => {
+      const xcafRoot = '/workspace/xcaf';
+      const fs = makeMockFs({
+        '/workspace/xcaf': [['blueprints', DIR]],
+        '/workspace/xcaf/blueprints': [
+          ['code-quality.xcaf', FILE],
+        ],
+      });
+
+      const groups = await scanXcafDirectory(xcafRoot, fs);
+      const bpGroup = groups.find(g => g.kind === 'blueprint')!;
+      const resource = bpGroup.resources[0];
+      assert.strictEqual(resource.name, 'code-quality');
+      assert.strictEqual(resource.kind, 'blueprint');
+      assert.ok(
+        resource.baseManifest.endsWith(path.join('blueprints', 'code-quality.xcaf')),
+        `Expected baseManifest to end with blueprints/code-quality.xcaf, got: ${resource.baseManifest}`,
+      );
+      assert.strictEqual(resource.overrides.length, 0);
+      assert.strictEqual(resource.artifactDirs.length, 0);
+    });
+
+    test('override-style flat files (e.g. blueprint.claude.xcaf) are skipped', async () => {
+      const xcafRoot = '/workspace/xcaf';
+      const fs = makeMockFs({
+        '/workspace/xcaf': [['blueprints', DIR]],
+        '/workspace/xcaf/blueprints': [
+          ['code-quality.xcaf', FILE],
+          ['blueprint.claude.xcaf', FILE],  // override pattern — should be skipped
+        ],
+      });
+
+      const groups = await scanXcafDirectory(xcafRoot, fs);
+      const bpGroup = groups.find(g => g.kind === 'blueprint')!;
+      assert.strictEqual(bpGroup.resources.length, 1);
+      assert.strictEqual(bpGroup.resources[0].name, 'code-quality');
+    });
+
+    test('non-.xcaf flat files in kind directory are ignored', async () => {
+      const xcafRoot = '/workspace/xcaf';
+      const fs = makeMockFs({
+        '/workspace/xcaf': [['blueprints', DIR]],
+        '/workspace/xcaf/blueprints': [
+          ['code-quality.xcaf', FILE],
+          ['README.md', FILE],
+          ['.gitkeep', FILE],
+        ],
+      });
+
+      const groups = await scanXcafDirectory(xcafRoot, fs);
+      const bpGroup = groups.find(g => g.kind === 'blueprint')!;
+      assert.strictEqual(bpGroup.resources.length, 1);
+      assert.strictEqual(bpGroup.resources[0].name, 'code-quality');
+    });
+
+    test('mixed flat files and subdirectories in same kind directory', async () => {
+      const xcafRoot = '/workspace/xcaf';
+      const fs = makeMockFs({
+        '/workspace/xcaf': [['policies', DIR]],
+        '/workspace/xcaf/policies': [
+          ['security.xcaf', FILE],        // flat file
+          ['advanced-policy', DIR],       // directory-per-resource
+        ],
+        '/workspace/xcaf/policies/advanced-policy': [
+          ['policy.xcaf', FILE],
+        ],
+      });
+
+      const groups = await scanXcafDirectory(xcafRoot, fs);
+      const policyGroup = groups.find(g => g.kind === 'policy')!;
+      assert.ok(policyGroup, 'policy group should exist');
+      assert.strictEqual(policyGroup.resources.length, 2);
+      const names = policyGroup.resources.map(r => r.name).sort();
+      assert.deepStrictEqual(names, ['advanced-policy', 'security']);
+    });
   });
 
   suite('XcafProjectModel', () => {

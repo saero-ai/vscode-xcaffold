@@ -111,3 +111,49 @@ export class StatusBarProvider implements vscode.Disposable {
     this.item.dispose();
   }
 }
+
+/**
+ * XcafDocumentInfoProvider shows word/line count for the active .xcaf file.
+ */
+export class XcafDocumentInfoProvider implements vscode.Disposable {
+  private item: vscode.StatusBarItem;
+  private disposables: vscode.Disposable[] = [];
+
+  constructor() {
+    this.item = vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Right,
+      90,
+    );
+    this.item.name = 'xcaf Document Info';
+
+    this.disposables.push(
+      vscode.window.onDidChangeActiveTextEditor((editor) => this.updateFromEditor(editor)),
+      vscode.workspace.onDidChangeTextDocument((e) => {
+        if (vscode.window.activeTextEditor?.document === e.document) {
+          this.updateFromEditor(vscode.window.activeTextEditor);
+        }
+      }),
+    );
+
+    this.updateFromEditor(vscode.window.activeTextEditor);
+  }
+
+  private updateFromEditor(editor: vscode.TextEditor | undefined): void {
+    if (!editor || !editor.document.fileName.endsWith('.xcaf')) {
+      this.item.hide();
+      return;
+    }
+    const text = editor.document.getText();
+    const lines = editor.document.lineCount;
+    const words = text.split(/\s+/).filter(Boolean).length;
+    this.item.text = `${lines} lines, ${words} words`;
+    this.item.show();
+  }
+
+  dispose(): void {
+    this.item.dispose();
+    for (const d of this.disposables) {
+      d.dispose();
+    }
+  }
+}
