@@ -7,37 +7,7 @@ import {
 } from '../statusDashProvider';
 
 suite('StatusDashProvider', () => {
-  suite('parseStatusDashOutput (JSON)', () => {
-    test('parses JSON format output', () => {
-      const stdout = JSON.stringify({
-        providers: [
-          {
-            name: 'claude',
-            status: 'synced',
-            lastApplied: '2026-05-04T12:00:00Z',
-            fileCount: 8,
-            drift: false,
-          },
-          {
-            name: 'cursor',
-            status: 'drifted',
-            lastApplied: '2026-05-03T10:00:00Z',
-            fileCount: 5,
-            drift: true,
-          },
-        ],
-      });
-
-      const providers = parseStatusDashOutput(stdout);
-      assert.strictEqual(providers.length, 2);
-      assert.strictEqual(providers[0].name, 'claude');
-      assert.strictEqual(providers[0].drift, false);
-      assert.strictEqual(providers[1].drift, true);
-      assert.strictEqual(providers[1].fileCount, 5);
-    });
-  });
-
-  suite('parseStatusDashOutput (text fallback)', () => {
+  suite('parseStatusDashOutput', () => {
     test('parses text format with provider blocks', () => {
       const stdout = [
         'xcaffold status',

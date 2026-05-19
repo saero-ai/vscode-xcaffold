@@ -61,11 +61,17 @@ export async function checkMinimumVersion(
     }
 
     if (!isVersionSatisfied(version, minVersion)) {
+      const upgradeAction = 'View Upgrade Instructions';
       vscode.window.showWarningMessage(
-        `xcaffold CLI version ${version.major}.${version.minor}.${version.patch} ` +
-        `is below the minimum required ${minVersion}. ` +
-        `Please upgrade: go install github.com/saero-ai/xcaffold@latest`
-      );
+        `xcaffold CLI v${version.major}.${version.minor}.${version.patch} ` +
+        `is below the minimum required v${minVersion}. ` +
+        `Some extension features may not work correctly.`,
+        upgradeAction,
+      ).then((choice) => {
+        if (choice === upgradeAction) {
+          vscode.env.openExternal(vscode.Uri.parse('https://github.com/saero-ai/xcaffold#installation'));
+        }
+      });
     }
   } catch {
     // Binary not found or errored — separate ENOENT handling exists in xcaffoldCli.ts

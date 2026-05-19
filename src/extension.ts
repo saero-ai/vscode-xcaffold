@@ -10,7 +10,7 @@ import { checkMinimumVersion } from './versionCheck';
 import { XcafIndex } from './xcafIndex';
 import { XcafProjectModel, FsAdapter } from './xcafProjectModel';
 import type { DataSource } from './webview/dataSource';
-import { StatusBarProvider } from './statusBarProvider';
+import { StatusBarProvider, XcafDocumentInfoProvider } from './statusBarProvider';
 import { runInitWizard } from './initWizardProvider';
 import { runImportPicker } from './importPickerProvider';
 import { CliDataSource } from './webview/dataSource';
@@ -368,6 +368,7 @@ export async function activate(
   const { treeProvider: tp, diagnosticProvider, commandProvider, treeView } = registerProviders(cli, xcafIndex, model, workspaceFolderPath, context);
   treeProvider = tp;
   const statusBar = new StatusBarProvider();
+  const docInfoBar = new XcafDocumentInfoProvider();
   initStatusBar(cli, workspaceFolderPath || '', statusBar);
 
   // 6b. Register CodeLens and Definition providers for .xcaf files
@@ -506,6 +507,7 @@ export async function activate(
     refreshCommand,
     graphCommand,
     statusBar,
+    docInfoBar,
     saveWatcher,
     deleteWatcher,
     codeLensProvider,

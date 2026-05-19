@@ -1,6 +1,7 @@
 // src/test/statusDashViewProvider.test.ts
 import * as assert from 'assert';
 import {
+  parseDeclaredTargets,
   parseStatusOutput,
   parseValidateSummary,
   StatusDashViewProvider,
@@ -76,6 +77,41 @@ suite('StatusDashViewProvider', () => {
       assert.strictEqual(result.providers.length, 0);
     });
 
+    test('parses header with blueprint name', () => {
+      const stdout = [
+        'xcaffold-vscode  .  blueprint: my-bp  .  last applied just now',
+        '',
+        '  PROVIDER       FILES   STATUS',
+        '  claude            14   ok synced',
+      ].join('\n');
+
+      const result = parseStatusOutput(stdout);
+      assert.strictEqual(result.projectName, 'xcaffold-vscode');
+      assert.strictEqual(result.blueprint, 'my-bp');
+      assert.strictEqual(result.lastApplied, 'just now');
+      assert.strictEqual(result.providers.length, 1);
+      assert.strictEqual(result.providers[0].name, 'claude');
+    });
+
+    test('header without blueprint has empty blueprint field', () => {
+      const stdout = [
+        'my-project  .  last applied 3 minutes ago',
+        '',
+        '  PROVIDER       FILES   STATUS',
+        '  claude             8   ok synced',
+      ].join('\n');
+
+      const result = parseStatusOutput(stdout);
+      assert.strictEqual(result.projectName, 'my-project');
+      assert.strictEqual(result.blueprint, '');
+      assert.strictEqual(result.lastApplied, '3 minutes ago');
+    });
+
+    test('empty output has empty blueprint field', () => {
+      const result = parseStatusOutput('');
+      assert.strictEqual(result.blueprint, '');
+    });
+
     test('handles malformed first line gracefully', () => {
       const stdout = 'some unexpected output format';
       const result = parseStatusOutput(stdout);
@@ -117,6 +153,76 @@ suite('StatusDashViewProvider', () => {
       assert.strictEqual(result.providers[1].name, 'claude');
       assert.strictEqual(result.providers[1].files, 251);
       assert.strictEqual(result.providers[1].status, '!! 2 modified');
+    });
+
+    test('sets state to synced for ok status', () => {
+      const stdout = [
+        'proj  .  last applied just now',
+        '',
+        '  PROVIDER       FILES   STATUS',
+        '  claude            14   ok synced',
+      ].join('\n');
+      const result = parseStatusOutput(stdout);
+      assert.strictEqual(result.providers[0].state, 'synced');
+    });
+
+    test('sets state to drifted for !! status', () => {
+      const stdout = [
+        'proj  .  last applied just now',
+        '',
+        '  PROVIDER       FILES   STATUS',
+        '  claude            14   !! 2 modified',
+      ].join('\n');
+      const result = parseStatusOutput(stdout);
+      assert.strictEqual(result.providers[0].state, 'drifted');
+    });
+
+    test('sets state to drifted for drift detected status', () => {
+      const stdout = [
+        'proj  .  last applied just now',
+        '',
+        '  PROVIDER       FILES   STATUS',
+        '  claude            14   drift detected',
+      ].join('\n');
+      const result = parseStatusOutput(stdout);
+      assert.strictEqual(result.providers[0].state, 'drifted');
+    });
+  });
+
+  suite('parseDeclaredTargets', () => {
+    test('extracts target names from project.xcaf content', () => {
+      const content = [
+        'kind: project',
+        'version: "1.0"',
+        'name: my-project',
+        'targets:',
+        '  - antigravity',
+        '  - claude',
+        '  - gemini',
+      ].join('\n');
+      const result = parseDeclaredTargets(content);
+      assert.deepStrictEqual(result, ['antigravity', 'claude', 'gemini']);
+    });
+
+    test('returns empty array when no targets section', () => {
+      const content = 'kind: project\nname: test\n';
+      assert.deepStrictEqual(parseDeclaredTargets(content), []);
+    });
+
+    test('returns empty array for empty content', () => {
+      assert.deepStrictEqual(parseDeclaredTargets(''), []);
+    });
+
+    test('stops parsing at next non-list field', () => {
+      const content = [
+        'targets:',
+        '  - claude',
+        '  - gemini',
+        'vars:',
+        '  key: value',
+      ].join('\n');
+      const result = parseDeclaredTargets(content);
+      assert.deepStrictEqual(result, ['claude', 'gemini']);
     });
   });
 
@@ -202,6 +308,24 @@ suite('StatusDashViewProvider', () => {
       assert.strictEqual(result.warnings, 0);
       assert.deepStrictEqual(result.messages, [
         'error: failed to parse agents/broken.xcaf',
+      ]);
+    });
+
+    test('** prefixed lines are warnings, not errors', () => {
+      const stdout = [
+        '  ok  syntax and schema',
+        '  ok  skill directories',
+        '  ok  structural checks',
+        '  **  policies (skipped: compilation error)',
+        '',
+        'ok  Validation passed.  99 .xcaf files checked.',
+      ].join('\n');
+
+      const result = parseValidateSummary(stdout);
+      assert.strictEqual(result.errors, 0);
+      assert.strictEqual(result.warnings, 1);
+      assert.deepStrictEqual(result.messages, [
+        'policies (skipped: compilation error)',
       ]);
     });
 
