@@ -3,8 +3,9 @@ import * as assert from 'assert';
 import {
   extractNeighborhood,
   buildEmptyStateHtml,
+  buildFullGraphBody,
 } from '../miniGraphProvider';
-import type { GraphNode, GraphEdge } from '../webview/graphWebview';
+import type { GraphNode, GraphEdge, GraphData } from '../webview/graphWebview';
 
 suite('extractNeighborhood', () => {
   const nodes: GraphNode[] = [
@@ -218,6 +219,96 @@ suite('buildEmptyStateHtml', () => {
     assert.ok(
       html.includes(`nonce="${nonce}"`),
       'script tag should contain the nonce',
+    );
+  });
+});
+
+suite('buildFullGraphBody', () => {
+  const nonce = 'test-nonce-full-graph';
+  const kindColorsJson = JSON.stringify({ agent: '#4a9eff', rule: '#ffab00' });
+  const refCountsJson = JSON.stringify({ 'rule:r1': 2, 'agent:a': 1 });
+
+  test('returns SVG markup for non-empty graph data', () => {
+    const data: GraphData = {
+      nodes: [
+        { id: 'agent:a', kind: 'agent', label: 'a' },
+        { id: 'rule:r1', kind: 'rule', label: 'r1' },
+      ],
+      edges: [
+        { from: 'agent:a', to: 'rule:r1', label: 'rule' },
+      ],
+    };
+
+    const html = buildFullGraphBody(data, nonce, kindColorsJson, refCountsJson);
+    assert.ok(
+      html.includes('<svg id="canvas">'),
+      'should contain SVG canvas element',
+    );
+    assert.ok(
+      html.includes(`nonce="${nonce}"`),
+      'should include nonce on script tag',
+    );
+    assert.ok(
+      html.includes('d3.zoom()'),
+      'should include D3 zoom behavior',
+    );
+    assert.ok(
+      html.includes('d3.drag()'),
+      'should include D3 drag behavior',
+    );
+    assert.ok(
+      html.includes('graph-tooltip'),
+      'should include tooltip element',
+    );
+  });
+
+  test('returns empty state for empty graph data', () => {
+    const data: GraphData = { nodes: [], edges: [] };
+
+    const html = buildFullGraphBody(data, nonce, kindColorsJson, refCountsJson);
+    assert.ok(
+      html.includes('placeholder'),
+      'should show placeholder for empty data',
+    );
+    assert.ok(
+      html.includes('No graph data available'),
+      'should include empty state message',
+    );
+  });
+
+  test('includes focusedId when focusNodeId is provided', () => {
+    const data: GraphData = {
+      nodes: [
+        { id: 'agent:a', kind: 'agent', label: 'a' },
+      ],
+      edges: [],
+    };
+
+    const html = buildFullGraphBody(
+      data, nonce, kindColorsJson, refCountsJson, 'agent:a',
+    );
+    assert.ok(
+      html.includes('"agent:a"'),
+      'should include the focused node ID in the script',
+    );
+    assert.ok(
+      html.includes('focusOnNode'),
+      'should include focusOnNode function',
+    );
+  });
+
+  test('sets focusedId to null when no focus provided', () => {
+    const data: GraphData = {
+      nodes: [
+        { id: 'agent:a', kind: 'agent', label: 'a' },
+      ],
+      edges: [],
+    };
+
+    const html = buildFullGraphBody(data, nonce, kindColorsJson, refCountsJson);
+    assert.ok(
+      html.includes('var focusedId = null'),
+      'should set focusedId to null when no focus node provided',
     );
   });
 });

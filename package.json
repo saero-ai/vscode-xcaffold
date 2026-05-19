@@ -170,7 +170,7 @@
         },
         {
           "id": "xcaffoldMiniGraph",
-          "name": "Dependencies",
+          "name": "Harness Graph",
           "type": "webview"
         }
       ]
