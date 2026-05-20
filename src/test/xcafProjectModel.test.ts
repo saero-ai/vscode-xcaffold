@@ -558,6 +558,131 @@ suite('xcafProjectModel', () => {
       assert.strictEqual(bpGroup.resources[0].name, 'code-quality');
     });
 
+    test('category subdirectory: flat .xcaf files in subdirs are discovered', async () => {
+      const xcafRoot = '/workspace/xcaf';
+      const fs = makeMockFs({
+        '/workspace/xcaf': [['blueprints', DIR]],
+        '/workspace/xcaf/blueprints': [
+          ['category-a', DIR],
+        ],
+        '/workspace/xcaf/blueprints/category-a': [
+          ['blueprint-one.xcaf', FILE],
+          ['blueprint-two.xcaf', FILE],
+        ],
+      });
+
+      const groups = await scanXcafDirectory(xcafRoot, fs);
+      const bpGroup = groups.find(g => g.kind === 'blueprint')!;
+      assert.ok(bpGroup, 'blueprint group should exist');
+      assert.strictEqual(bpGroup.resources.length, 2);
+      const names = bpGroup.resources.map(r => r.name).sort();
+      assert.deepStrictEqual(names, ['blueprint-one', 'blueprint-two']);
+    });
+
+    test('category subdirectory: multiple category subdirs produce resources from each', async () => {
+      const xcafRoot = '/workspace/xcaf';
+      const fs = makeMockFs({
+        '/workspace/xcaf': [['blueprints', DIR]],
+        '/workspace/xcaf/blueprints': [
+          ['category-a', DIR],
+          ['category-b', DIR],
+        ],
+        '/workspace/xcaf/blueprints/category-a': [
+          ['bp-one.xcaf', FILE],
+        ],
+        '/workspace/xcaf/blueprints/category-b': [
+          ['bp-two.xcaf', FILE],
+        ],
+      });
+
+      const groups = await scanXcafDirectory(xcafRoot, fs);
+      const bpGroup = groups.find(g => g.kind === 'blueprint')!;
+      assert.ok(bpGroup, 'blueprint group should exist');
+      assert.strictEqual(bpGroup.resources.length, 2);
+      const names = bpGroup.resources.map(r => r.name).sort();
+      assert.deepStrictEqual(names, ['bp-one', 'bp-two']);
+    });
+
+    test('category subdirectory: mixed flat files at kind level and in category subdir', async () => {
+      const xcafRoot = '/workspace/xcaf';
+      const fs = makeMockFs({
+        '/workspace/xcaf': [['blueprints', DIR]],
+        '/workspace/xcaf/blueprints': [
+          ['quick.xcaf', FILE],       // flat at kind level
+          ['composed', DIR],          // category subdirectory
+        ],
+        '/workspace/xcaf/blueprints/composed': [
+          ['full-stack.xcaf', FILE],
+        ],
+      });
+
+      const groups = await scanXcafDirectory(xcafRoot, fs);
+      const bpGroup = groups.find(g => g.kind === 'blueprint')!;
+      assert.ok(bpGroup, 'blueprint group should exist');
+      assert.strictEqual(bpGroup.resources.length, 2);
+      const names = bpGroup.resources.map(r => r.name).sort();
+      assert.deepStrictEqual(names, ['full-stack', 'quick']);
+    });
+
+    test('category subdirectory: works for any kind, not just blueprints', async () => {
+      const xcafRoot = '/workspace/xcaf';
+      const fs = makeMockFs({
+        '/workspace/xcaf': [['skills', DIR]],
+        '/workspace/xcaf/skills': [
+          ['utility', DIR],
+        ],
+        '/workspace/xcaf/skills/utility': [
+          ['helper-skill.xcaf', FILE],
+        ],
+      });
+
+      const groups = await scanXcafDirectory(xcafRoot, fs);
+      const skillGroup = groups.find(g => g.kind === 'skill')!;
+      assert.ok(skillGroup, 'skill group should exist');
+      assert.strictEqual(skillGroup.resources.length, 1);
+      assert.strictEqual(skillGroup.resources[0].name, 'helper-skill');
+      assert.strictEqual(skillGroup.resources[0].kind, 'skill');
+    });
+
+    test('category subdirectory: override-style files are skipped', async () => {
+      const xcafRoot = '/workspace/xcaf';
+      const fs = makeMockFs({
+        '/workspace/xcaf': [['blueprints', DIR]],
+        '/workspace/xcaf/blueprints': [
+          ['composed', DIR],
+        ],
+        '/workspace/xcaf/blueprints/composed': [
+          ['full-stack.xcaf', FILE],
+          ['blueprint.claude.xcaf', FILE],  // override pattern — should be skipped
+        ],
+      });
+
+      const groups = await scanXcafDirectory(xcafRoot, fs);
+      const bpGroup = groups.find(g => g.kind === 'blueprint')!;
+      assert.strictEqual(bpGroup.resources.length, 1);
+      assert.strictEqual(bpGroup.resources[0].name, 'full-stack');
+    });
+
+    test('category subdirectory: non-.xcaf files are ignored', async () => {
+      const xcafRoot = '/workspace/xcaf';
+      const fs = makeMockFs({
+        '/workspace/xcaf': [['blueprints', DIR]],
+        '/workspace/xcaf/blueprints': [
+          ['composed', DIR],
+        ],
+        '/workspace/xcaf/blueprints/composed': [
+          ['full-stack.xcaf', FILE],
+          ['README.md', FILE],
+          ['.gitkeep', FILE],
+        ],
+      });
+
+      const groups = await scanXcafDirectory(xcafRoot, fs);
+      const bpGroup = groups.find(g => g.kind === 'blueprint')!;
+      assert.strictEqual(bpGroup.resources.length, 1);
+      assert.strictEqual(bpGroup.resources[0].name, 'full-stack');
+    });
+
     test('non-.xcaf flat files in kind directory are ignored', async () => {
       const xcafRoot = '/workspace/xcaf';
       const fs = makeMockFs({

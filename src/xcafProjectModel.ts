@@ -197,6 +197,21 @@ export async function scanXcafDirectory(
             resources.push(resource);
           }
         }
+        // Also discover flat .xcaf files inside subdirectories (category pattern)
+        for (const [childName, childType] of resourceFiles) {
+          if (childType === FILE_TYPE_FILE && childName.endsWith('.xcaf')) {
+            const name = childName.slice(0, -'.xcaf'.length);
+            if (!name.includes('.')) {
+              resources.push({
+                name,
+                kind,
+                baseManifest: path.join(resourceDirPath, childName),
+                overrides: [],
+                artifactDirs: [],
+              });
+            }
+          }
+        }
       }
     }
 
