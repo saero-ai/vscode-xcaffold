@@ -1,0 +1,52 @@
+{
+  "intro": "Most commands are accessible from the command palette (`Cmd+Shift+P` on macOS, `Ctrl+Shift+P` on Windows/Linux). Type **xcaffold** to filter to extension commands. A small number of commands are wired to sidebar toolbar buttons and are noted below.",
+  "categories": [
+    {
+      "name": "Lifecycle Commands",
+      "description": "These commands map directly to xcaffold CLI operations and run against the workspace root.",
+      "commands": ["xcaffold.apply", "xcaffold.validate", "xcaffold.status", "xcaffold.list", "xcaffold.graph", "xcaffold.import"],
+      "descriptions": {
+        "xcaffold.apply": "Compile `.xcaf` manifests into provider-native configs",
+        "xcaffold.validate": "Check all manifests for schema and cross-reference errors",
+        "xcaffold.status": "Show compilation state and detect drift",
+        "xcaffold.list": "List discovered resources and blueprints",
+        "xcaffold.graph": "Open the interactive D3 dependency graph",
+        "xcaffold.import": "Import existing provider configs into `.xcaf`"
+      }
+    },
+    {
+      "name": "Editor Commands",
+      "description": "These commands operate on the file currently open in the active editor or on resources selected in the tree view.",
+      "commands": ["xcaffold.validateFile", "xcaffold.openResource", "xcaffold.findReferences", "xcaffold.newResource", "xcaffold.deleteResource", "xcaffold.refreshExplorer"],
+      "descriptions": {
+        "xcaffold.validateFile": "Validate the currently open `.xcaf` file",
+        "xcaffold.openResource": "Open a resource's source file from tree view",
+        "xcaffold.findReferences": "Find all files referencing a resource",
+        "xcaffold.newResource": "Create a new `.xcaf` resource from template (opens a dialog)",
+        "xcaffold.deleteResource": "Remove a resource and its file",
+        "xcaffold.refreshExplorer": "Refresh the resource tree view (also the refresh toolbar button on the Resource Explorer sidebar)"
+      }
+    },
+    {
+      "name": "Wizard Commands",
+      "description": "Guided, multi-step commands that walk through a workflow interactively.",
+      "commands": ["xcaffold.initWizard", "xcaffold.importPicker"],
+      "descriptions": {
+        "xcaffold.initWizard": "Interactive project initialization",
+        "xcaffold.importPicker": "Multi-select provider import"
+      }
+    },
+    {
+      "name": "Webview Commands",
+      "description": "These commands open dedicated panels inside VS Code.",
+      "commands": ["xcaffold.diff", "xcaffold.refreshDashboard", "xcaffold.statusDash", "xcaffold.schemaViewer"],
+      "descriptions": {
+        "xcaffold.diff": "Preview apply changes before writing",
+        "xcaffold.refreshDashboard": "Refresh the status dashboard data (also the refresh toolbar button on the Status Dashboard sidebar)",
+        "xcaffold.statusDash": "Visual drift detection dashboard",
+        "xcaffold.schemaViewer": "Browse `.xcaf` field schemas"
+      }
+    }
+  ],
+  "outro": "Most commands require the xcaffold CLI to be installed and available on `PATH`. The exceptions are file and tree operations (Open File, Find References, New Resource, Delete Resource, Refresh Explorer) which work without the CLI. If the CLI is not found, commands that need it will display a \"CLI not found\" notification with a link to the installation guide.\n\nSee [Getting Started](getting-started.md#troubleshooting) for CLI path configuration."
+}
