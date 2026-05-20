@@ -2,6 +2,15 @@
 
 All notable changes to the xcaffold VS Code extension will be documented in this file.
 
+## [0.5.1](https://github.com/saero-ai/vscode-xcaffold/compare/vscode-xcaffold-v0.5.0...vscode-xcaffold-v0.5.1) (2026-05-20)
+
+
+### Bug Fixes
+
+* **tree-view:** discover flat .xcaf files in category subdirectories ([33bedd5](https://github.com/saero-ai/vscode-xcaffold/commit/33bedd5a041309e142b179c8df69039199ce1b13))
+* **tree-view:** discover flat .xcaf files in category subdirectories ([d37229a](https://github.com/saero-ai/vscode-xcaffold/commit/d37229acb4237e343ecc9dc2114717c0182a5c25)), closes [#26](https://github.com/saero-ai/vscode-xcaffold/issues/26)
+* **tree-view:** scanner and template improvements ([e7fb46f](https://github.com/saero-ai/vscode-xcaffold/commit/e7fb46f16f52af4263d62ade7d1bf9e1d6b17077))
+
 ## [0.5.0](https://github.com/saero-ai/vscode-xcaffold/compare/vscode-xcaffold-v0.4.0...vscode-xcaffold-v0.5.0) (2026-05-19)
 
 
