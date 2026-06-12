@@ -9,6 +9,17 @@ export interface SemVer {
 
 const SEMVER_RE = /(\d+)\.(\d+)\.(\d+)/;
 
+export const INSTALL_GUIDE_URL = 'https://github.com/saero-ai/xcaffold#installation';
+
+export function getCliNotFoundMessage(minVersion: string): string {
+  return [
+    `xcaffold binary was not found on PATH. Install xcaffold CLI ${minVersion}+ with Homebrew`,
+    '(`brew install saero-ai/tap/xcaffold`) or Go',
+    '(`go install github.com/saero-ai/xcaffold@latest`), then restart VS Code.',
+    `Installation guide: ${INSTALL_GUIDE_URL}`,
+  ].join(' ');
+}
+
 /**
  * parseVersion extracts the first semver triple from a string.
  * Handles "v0.5.0", "xcaffold version 0.5.0", and bare "0.5.0".
@@ -73,7 +84,10 @@ export async function checkMinimumVersion(
         }
       });
     }
-  } catch {
-    // Binary not found or errored — separate ENOENT handling exists in xcaffoldCli.ts
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (/not found|ENOENT/i.test(message)) {
+      vscode.window.showWarningMessage(getCliNotFoundMessage(minVersion));
+    }
   }
 }

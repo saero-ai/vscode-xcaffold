@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { parseVersion, isVersionSatisfied } from '../versionCheck';
+import { parseVersion, isVersionSatisfied, getCliNotFoundMessage, INSTALL_GUIDE_URL } from '../versionCheck';
 
 suite('Version Check', () => {
   suite('parseVersion', () => {
@@ -21,6 +21,17 @@ suite('Version Check', () => {
     test('returns null for unparseable input', () => {
       assert.strictEqual(parseVersion('not a version'), null);
       assert.strictEqual(parseVersion(''), null);
+    });
+  });
+
+  suite('getCliNotFoundMessage', () => {
+    test('includes install methods and the installation guide', () => {
+      const message = getCliNotFoundMessage('0.5.0');
+
+      assert.ok(message.includes('xcaffold binary was not found on PATH'));
+      assert.ok(message.includes('brew install saero-ai/tap/xcaffold'));
+      assert.ok(message.includes('go install github.com/saero-ai/xcaffold@latest'));
+      assert.ok(message.includes(INSTALL_GUIDE_URL));
     });
   });
 
