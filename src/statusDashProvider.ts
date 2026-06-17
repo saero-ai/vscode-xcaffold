@@ -7,6 +7,7 @@
 import * as vscode from 'vscode';
 import { BaseWebview, escapeHtml } from './webview/baseWebview';
 import { DataSource } from './webview/dataSource';
+import { StatusJSON, StatusProvider } from './cliTypes';
 
 export interface ProviderStatus {
   name: string;
@@ -14,6 +15,8 @@ export interface ProviderStatus {
   lastApplied: string | null;
   fileCount: number;
   drift: boolean;
+  deprecatedBy?: string;
+  sunsetDate?: string;
 }
 
 /**
@@ -85,6 +88,34 @@ export function parseStatusDashOutput(stdout: string): ProviderStatus[] {
   return providers;
 }
 
+/**
+ * parseStatusJSON parses structured JSON output from `xcaffold status --output json`.
+ * Maps StatusProvider[] to the existing ProviderStatus[] type.
+ */
+export function parseStatusJSON(stdout: string): ProviderStatus[] {
+  const json: StatusJSON = JSON.parse(stdout);
+  return json.providers.map((p: StatusProvider) => ({
+    name: p.name,
+    status: p.status,
+    lastApplied: p.lastApplied || null,
+    fileCount: p.fileCount,
+    drift: p.driftCount > 0,
+    deprecatedBy: p.deprecatedBy || undefined,
+    sunsetDate: p.sunsetDate || undefined,
+  }));
+}
+
+/**
+ * parseStatusOutput tries JSON first, falls back to text parsing.
+ */
+export function parseStatusOutput(stdout: string): ProviderStatus[] {
+  try {
+    return parseStatusJSON(stdout);
+  } catch {
+    return parseStatusDashOutput(stdout);
+  }
+}
+
 function finalizeProvider(
   partial: Partial<ProviderStatus>,
 ): ProviderStatus {
@@ -133,17 +164,34 @@ export class StatusDashProvider extends BaseWebview {
 
   protected async getHtmlBody(webview: vscode.Webview, nonce: string): Promise<string> {
     let stdout: string;
+    let jsonFailed = false;
     try {
       const result = await this.dataSource.fetch(
-        ['status'],
+        ['status', '--json'],
         this.workspaceFolder,
       );
       stdout = result.stdout;
-    } catch (err: any) {
-      return `<div class="error">Failed to run status: ${escapeHtml(err.message)}</div>`;
+    } catch {
+      jsonFailed = true;
+      try {
+        const result = await this.dataSource.fetch(
+          ['status'],
+          this.workspaceFolder,
+        );
+        stdout = result.stdout;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return `<div class="error">Failed to run status: ${escapeHtml(message)}</div>`;
+      }
     }
 
-    const providers = parseStatusDashOutput(stdout);
+    if (jsonFailed) {
+      vscode.window.showWarningMessage(
+        'xcaffold CLI does not support --json output. Some features may be limited. Upgrade to v0.14.0 or later.',
+      );
+    }
+
+    const providers = parseStatusOutput(stdout);
 
     if (providers.length === 0) {
       return `
@@ -158,6 +206,9 @@ export class StatusDashProvider extends BaseWebview {
         const icon = driftIcon(p.drift);
         const statusBadge = p.drift ? 'badge-yellow' : 'badge-green';
         const lastApplied = p.lastApplied || 'Never';
+        const deprecationHtml = p.status === 'deprecated' && p.deprecatedBy
+          ? `<div class="meta" style="color: var(--warning);">Deprecated -- use ${escapeHtml(p.deprecatedBy)} instead</div>`
+          : '';
 
         return `
           <div class="card provider-card">
@@ -166,6 +217,7 @@ export class StatusDashProvider extends BaseWebview {
               ${escapeHtml(p.name)}
             </h2>
             <div class="meta">Status: <span class="badge ${statusBadge}">${escapeHtml(p.status)}</span></div>
+            ${deprecationHtml}
             <div class="meta">Last applied: ${escapeHtml(lastApplied)}</div>
             <div class="meta">Files: ${p.fileCount}</div>
             <button class="apply-btn" data-provider="${escapeHtml(p.name)}"

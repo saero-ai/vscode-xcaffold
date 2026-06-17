@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { ListResourceJSON } from './cliTypes';
 import { XcafProjectModel, XcafResource, kindToDisplayName } from './xcafProjectModel';
 
 export interface ResourceInfo {
@@ -228,6 +229,25 @@ export function parseListOutput(stdout: string): Map<string, ResourceInfo[]> {
   return grouped;
 }
 
+export function parseListJSON(stdout: string): Map<string, ResourceInfo[]> {
+  const items: ListResourceJSON[] = JSON.parse(stdout);
+  const grouped = new Map<string, ResourceInfo[]>();
+  for (const item of items) {
+    const list = grouped.get(item.kind) ?? [];
+    list.push({ kind: item.kind, name: item.name, description: '' });
+    grouped.set(item.kind, list);
+  }
+  return grouped;
+}
+
+export function parseListData(stdout: string): Map<string, ResourceInfo[]> {
+  try {
+    return parseListJSON(stdout);
+  } catch {
+    return parseListOutput(stdout);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Object Explorer node types
 // ---------------------------------------------------------------------------
@@ -330,31 +350,63 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
 
   private async _getRootChildren(): Promise<ExplorerNode[]> {
     const kinds = this.model.getKinds();
+    let children: ExplorerNode[];
+
     if (kinds.length > 0) {
-      return kinds.map(kg => new ExplorerNode(
+      children = kinds.map(kg => new ExplorerNode(
         `${kg.displayName} (${kg.resources.length})`,
         'kind-group',
         vscode.TreeItemCollapsibleState.Collapsed,
         { type: 'kind-group', kind: kg.kind, count: kg.resources.length },
       ));
+    } else if (this.cli && this.workspaceFolder) {
+      children = await this._getCliFallbackChildren();
+    } else {
+      return [new ExplorerNode(
+        'No xcaffold project detected',
+        'property',
+        vscode.TreeItemCollapsibleState.None,
+        { type: 'property', fieldLabel: 'info', value: 'Create a project.xcaf or run xcaffold init' },
+      )];
     }
 
-    if (this.cli && this.workspaceFolder) {
-      return this._getCliFallbackChildren();
-    }
+    children.push(new ExplorerNode(
+      'Global',
+      'kind-group',
+      vscode.TreeItemCollapsibleState.Collapsed,
+      { type: 'kind-group', kind: '__global__', count: 0 },
+    ));
 
-    return [new ExplorerNode(
-      'No xcaffold project detected',
-      'property',
-      vscode.TreeItemCollapsibleState.None,
-      { type: 'property', fieldLabel: 'info', value: 'Create a project.xcaf or run xcaffold init' },
-    )];
+    children.push(new ExplorerNode(
+      'Registry',
+      'kind-group',
+      vscode.TreeItemCollapsibleState.Collapsed,
+      { type: 'kind-group', kind: '__registry__', count: 0 },
+    ));
+
+    return children;
   }
 
   private async _getCliFallbackChildren(): Promise<ExplorerNode[]> {
     try {
-      const result = await this.cli!.run(['list'], this.workspaceFolder!);
-      const grouped = parseListOutput(result.stdout);
+      let stdout: string;
+      let jsonFailed = false;
+      try {
+        const result = await this.cli!.run(['list', '--json'], this.workspaceFolder!);
+        stdout = result.stdout;
+      } catch {
+        jsonFailed = true;
+        const result = await this.cli!.run(['list'], this.workspaceFolder!);
+        stdout = result.stdout;
+      }
+
+      if (jsonFailed) {
+        vscode.window.showWarningMessage(
+          'xcaffold CLI does not support --json output. Some features may be limited. Upgrade to v0.14.0 or later.',
+        );
+      }
+
+      const grouped = parseListData(stdout);
       if (grouped.size === 0) {
         return [new ExplorerNode(
           'No xcaffold project detected',
@@ -385,7 +437,15 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
     }
   }
 
-  private _getKindGroupChildren(data: KindGroupData): ExplorerNode[] {
+  private async _getKindGroupChildren(data: KindGroupData): Promise<ExplorerNode[]> {
+    if (data.kind === '__global__') {
+      return this._getGlobalChildren();
+    }
+
+    if (data.kind === '__registry__') {
+      return this._getRegistryChildren();
+    }
+
     const resources = this.model.getResources(data.kind);
     if (resources.length > 0) {
       // Group scoped resources into scope-group nodes
@@ -427,6 +487,78 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
       ));
     }
     return [];
+  }
+
+  private async _getGlobalChildren(): Promise<ExplorerNode[]> {
+    if (!this.cli || !this.workspaceFolder) {
+      return [];
+    }
+    try {
+      let stdout: string;
+      try {
+        const result = await this.cli.run(['list', '--json', '--global'], this.workspaceFolder);
+        stdout = result.stdout;
+      } catch {
+        const result = await this.cli.run(['list', '--global'], this.workspaceFolder);
+        stdout = result.stdout;
+      }
+      const grouped = parseListData(stdout);
+      const nodes: ExplorerNode[] = [];
+      for (const [kind, resources] of Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))) {
+        for (const r of resources) {
+          nodes.push(new ExplorerNode(
+            r.name,
+            'resource',
+            vscode.TreeItemCollapsibleState.None,
+            { type: 'resource', kind, name: r.name, baseManifest: '', overrideCount: 0 },
+          ));
+        }
+      }
+      return nodes;
+    } catch {
+      return [new ExplorerNode(
+        'Failed to load global resources',
+        'property',
+        vscode.TreeItemCollapsibleState.None,
+        { type: 'property', fieldLabel: 'error', value: 'CLI error' },
+      )];
+    }
+  }
+
+  private async _getRegistryChildren(): Promise<ExplorerNode[]> {
+    if (!this.cli || !this.workspaceFolder) {
+      return [];
+    }
+    try {
+      const result = await this.cli.run(['registry', 'list', '--json'], this.workspaceFolder);
+      const stdout = result.stdout.trim();
+      if (!stdout || stdout === '[]') {
+        return [new ExplorerNode(
+          'No registry entries',
+          'property',
+          vscode.TreeItemCollapsibleState.None,
+          { type: 'property', fieldLabel: 'info', value: 'Run "xcaffold: Registry Add" to add entries' },
+        )];
+      }
+      const entries: Array<{ name: string; path: string }> = JSON.parse(stdout);
+      return entries.map(e => {
+        const node = new ExplorerNode(
+          e.name,
+          'resource',
+          vscode.TreeItemCollapsibleState.None,
+          { type: 'resource', kind: 'registry', name: e.name, baseManifest: e.path || '', overrideCount: 0 },
+        );
+        node.contextValue = 'registry-entry';
+        return node;
+      });
+    } catch {
+      return [new ExplorerNode(
+        'Failed to load registry',
+        'property',
+        vscode.TreeItemCollapsibleState.None,
+        { type: 'property', fieldLabel: 'error', value: 'CLI error' },
+      )];
+    }
   }
 
   private _getScopeGroupChildren(data: ScopeGroupData): ExplorerNode[] {

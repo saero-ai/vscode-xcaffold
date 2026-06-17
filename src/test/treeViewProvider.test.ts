@@ -1,7 +1,11 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import {
   parseListOutput,
+  parseListJSON,
+  parseListData,
   extractMetadataFields,
   ObjectExplorerProvider,
   ExplorerNode,
@@ -130,6 +134,66 @@ suite('TreeViewProvider', () => {
     const grouped = parseListOutput(stdout);
     assert.ok(grouped.has('policy'));
     assert.strictEqual(grouped.get('policy')!.length, 1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseListJSON tests
+// ---------------------------------------------------------------------------
+
+suite('parseListJSON', () => {
+  test('groups resources by category from JSON array', () => {
+    const fixture = JSON.stringify([
+      { kind: 'agent', name: 'coder', target: 'claude', source: 'xcaf/agents/coder/agent.xcaf' },
+      { kind: 'agent', name: 'reviewer', target: 'claude', source: 'xcaf/agents/reviewer/agent.xcaf' },
+      { kind: 'rule', name: 'security', target: 'claude', source: 'xcaf/rules/security/rule.xcaf' },
+      { kind: 'skill', name: 'deploy', target: 'claude', source: 'xcaf/skills/deploy/skill.xcaf' },
+    ]);
+    const grouped = parseListJSON(fixture);
+    assert.strictEqual(grouped.size, 3);
+    assert.strictEqual(grouped.get('agent')!.length, 2);
+    assert.strictEqual(grouped.get('rule')!.length, 1);
+    assert.strictEqual(grouped.get('skill')!.length, 1);
+    assert.strictEqual(grouped.get('agent')![0].name, 'coder');
+  });
+
+  test('returns empty map for empty JSON array', () => {
+    const grouped = parseListJSON('[]');
+    assert.strictEqual(grouped.size, 0);
+  });
+
+  test('throws on malformed JSON', () => {
+    assert.throws(() => parseListJSON('not json'));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseListData tests
+// ---------------------------------------------------------------------------
+
+suite('parseListData', () => {
+  test('uses JSON parser for valid JSON input', () => {
+    const fixture = JSON.stringify([
+      { kind: 'agent', name: 'coder', target: 'claude', source: 'xcaf/agents/coder/agent.xcaf' },
+    ]);
+    const grouped = parseListData(fixture);
+    assert.strictEqual(grouped.size, 1);
+    assert.strictEqual(grouped.get('agent')![0].name, 'coder');
+  });
+
+  test('falls back to text parser for non-JSON input', () => {
+    const textOutput = [
+      'AGENTS (2)',
+      '  coder',
+      '  reviewer',
+      '',
+      'RULES (1)',
+      '  security',
+    ].join('\n');
+    const grouped = parseListData(textOutput);
+    assert.strictEqual(grouped.size, 2);
+    assert.strictEqual(grouped.get('agent')!.length, 2);
+    assert.strictEqual(grouped.get('rule')!.length, 1);
   });
 });
 
@@ -454,20 +518,23 @@ suite('extractMetadataFields', () => {
 // ---------------------------------------------------------------------------
 
 suite('ObjectExplorerProvider', () => {
-  test('root level returns sorted kind-group nodes (AGENTS, RULES, SKILLS)', async () => {
+  test('root level returns sorted kind-group nodes (AGENTS, RULES, SKILLS) plus Global and Registry', async () => {
     const provider = new ObjectExplorerProvider(makeModel(makeGroups()));
     const roots = await provider.getChildren();
 
-    assert.strictEqual(roots.length, 3);
-    // Sorted by kind: agent < rule < skill
-    assert.strictEqual((roots[0] as ExplorerNode).nodeType, 'kind-group');
-    assert.strictEqual((roots[1] as ExplorerNode).nodeType, 'kind-group');
-    assert.strictEqual((roots[2] as ExplorerNode).nodeType, 'kind-group');
+    // 3 kind groups + Global + Registry
+    assert.strictEqual(roots.length, 5);
+    // Sorted by kind: agent < rule < skill, then Global, then Registry
+    roots.forEach(r => {
+      assert.strictEqual((r as ExplorerNode).nodeType, 'kind-group');
+    });
 
     const labels = roots.map(r => r.label as string);
     assert.strictEqual(labels[0], 'AGENTS (2)');
     assert.strictEqual(labels[1], 'RULES (1)');
     assert.strictEqual(labels[2], 'SKILLS (1)');
+    assert.strictEqual(labels[3], 'Global');
+    assert.strictEqual(labels[4], 'Registry');
   });
 
   test('kind-group label includes count', async () => {
@@ -1188,7 +1255,8 @@ suite('ObjectExplorerProvider', () => {
     provider.refresh();
 
     const roots = await provider.getChildren();
-    assert.strictEqual(roots.length, 3);
+    // 3 kind groups + Global + Registry
+    assert.strictEqual(roots.length, 5);
   });
 
   test('contextValue on ExplorerNode matches nodeType', async () => {
@@ -1226,10 +1294,13 @@ suite('ObjectExplorerProvider', () => {
     const provider = new ObjectExplorerProvider(makeModel([]), mockCli, '/workspace');
     const roots = await provider.getChildren();
 
-    assert.ok(roots.length >= 2, 'should have kind-group nodes from CLI output');
+    // CLI kind groups + Global + Registry nodes
+    assert.ok(roots.length >= 4, 'should have kind-group nodes from CLI output plus Global and Registry');
     const labels = roots.map(r => r.label as string);
     assert.ok(labels.some(l => l.startsWith('AGENTS')), 'should have AGENTS group');
     assert.ok(labels.some(l => l.startsWith('SKILLS')), 'should have SKILLS group');
+    assert.ok(labels.includes('Global'), 'should have Global group');
+    assert.ok(labels.includes('Registry'), 'should have Registry group');
     roots.forEach(r => {
       assert.strictEqual((r as ExplorerNode).nodeType, 'kind-group');
     });
@@ -1278,8 +1349,11 @@ suite('ObjectExplorerProvider', () => {
     const provider = new ObjectExplorerProvider(makeModel([]), mockCli, '/workspace');
     const roots = await provider.getChildren();
 
-    assert.strictEqual(roots.length, 1, 'should return exactly one error node');
+    // Error node + Global node + Registry node
+    assert.strictEqual(roots.length, 3, 'should return error node plus Global and Registry');
     assert.ok((roots[0].label as string).includes('CLI Error'), 'error node label should include "CLI Error"');
+    assert.strictEqual(roots[1].label, 'Global', 'should still have Global node');
+    assert.strictEqual(roots[2].label, 'Registry', 'should still have Registry node');
   });
 
   test('model-driven mode takes priority over CLI: CLI not called when model has data', async () => {
@@ -1295,9 +1369,208 @@ suite('ObjectExplorerProvider', () => {
     const roots = await provider.getChildren();
 
     assert.strictEqual(cliCalled, false, 'CLI should not be called when model has data');
-    assert.strictEqual(roots.length, 3, 'should return model-driven kind groups');
-    roots.forEach(r => {
+    // 3 kind groups + Global + Registry
+    assert.strictEqual(roots.length, 5, 'should return model-driven kind groups plus Global and Registry');
+    roots.slice(0, 3).forEach(r => {
       assert.strictEqual((r as ExplorerNode).nodeType, 'kind-group');
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Global section tests
+// ---------------------------------------------------------------------------
+
+suite('Global section', () => {
+  test('root children include Global node before Registry', async () => {
+    const model = makeModel(makeGroups());
+    const provider = new ObjectExplorerProvider(model);
+    const children = await provider.getChildren();
+    const globalNode = children.find(c => c.label === 'Global');
+    assert.ok(globalNode, 'Global root node should exist');
+    assert.strictEqual(globalNode!.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
+    const globalIdx = children.findIndex(c => c.label === 'Global');
+    const registryIdx = children.findIndex(c => c.label === 'Registry');
+    assert.ok(globalIdx < registryIdx, 'Global should appear before Registry');
+  });
+
+  test('Global node uses list --json --global', async () => {
+    let capturedArgs: string[] = [];
+    const mockCli = {
+      run: async (args: string[], _cwd: string) => {
+        capturedArgs = args;
+        return {
+          stdout: JSON.stringify([
+            { kind: 'agent', name: 'global-agent', target: 'claude', source: '~/.xcaf/agents/global-agent/agent.xcaf' },
+          ]),
+          stderr: '',
+        };
+      },
+    };
+    const model = makeModel(makeGroups());
+    const provider = new ObjectExplorerProvider(model, mockCli, '/workspace');
+    const roots = await provider.getChildren();
+    const globalNode = roots.find(c => c.label === 'Global');
+    assert.ok(globalNode);
+    const globalChildren = await provider.getChildren(globalNode as ExplorerNode);
+    assert.ok(capturedArgs.includes('--global'), 'Should pass --global flag');
+    assert.ok(capturedArgs.includes('--json'), 'Should pass --json flag');
+    assert.strictEqual(globalChildren.length, 1);
+    assert.strictEqual(globalChildren[0].label, 'global-agent');
+  });
+
+  test('Global node returns empty array when CLI is not available', async () => {
+    const model = makeModel(makeGroups());
+    const provider = new ObjectExplorerProvider(model);
+    const roots = await provider.getChildren();
+    const globalNode = roots.find(c => c.label === 'Global');
+    assert.ok(globalNode);
+    const globalChildren = await provider.getChildren(globalNode as ExplorerNode);
+    assert.strictEqual(globalChildren.length, 0);
+  });
+
+  test('Global node falls back to list --global when --json fails', async () => {
+    let callCount = 0;
+    const mockCli = {
+      run: async (args: string[], _cwd: string) => {
+        callCount++;
+        if (args.includes('--json') && args.includes('--global')) {
+          throw new Error('unsupported flag');
+        }
+        if (args.includes('--global')) {
+          return {
+            stdout: [
+              'AGENTS  (1)',
+              '  fallback-agent',
+            ].join('\n'),
+            stderr: '',
+          };
+        }
+        // For non-global calls (root children CLI fallback), return empty
+        return { stdout: '[]', stderr: '' };
+      },
+    };
+    const model = makeModel(makeGroups());
+    const provider = new ObjectExplorerProvider(model, mockCli, '/workspace');
+    const roots = await provider.getChildren();
+    const globalNode = roots.find(c => c.label === 'Global');
+    assert.ok(globalNode);
+    const globalChildren = await provider.getChildren(globalNode as ExplorerNode);
+    assert.strictEqual(globalChildren.length, 1);
+    assert.strictEqual(globalChildren[0].label, 'fallback-agent');
+  });
+
+  test('Global node shows error node when both CLI calls fail', async () => {
+    const mockCli = {
+      run: async (args: string[], _cwd: string) => {
+        if (args.includes('--global')) {
+          throw new Error('CLI error');
+        }
+        return { stdout: '[]', stderr: '' };
+      },
+    };
+    const model = makeModel(makeGroups());
+    const provider = new ObjectExplorerProvider(model, mockCli, '/workspace');
+    const roots = await provider.getChildren();
+    const globalNode = roots.find(c => c.label === 'Global');
+    assert.ok(globalNode);
+    const globalChildren = await provider.getChildren(globalNode as ExplorerNode);
+    assert.strictEqual(globalChildren.length, 1);
+    assert.strictEqual(globalChildren[0].label, 'Failed to load global resources');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Registry section tests
+// ---------------------------------------------------------------------------
+
+suite('Registry section', () => {
+  test('root children include Registry node', async () => {
+    const model = makeModel(makeGroups());
+    const provider = new ObjectExplorerProvider(model);
+    const children = await provider.getChildren();
+    const registryNode = children.find(c => c.label === 'Registry');
+    assert.ok(registryNode, 'Registry root node should exist');
+    assert.strictEqual(registryNode!.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
+  });
+
+  test('Registry node calls registry list --json', async () => {
+    let capturedArgs: string[] = [];
+    const mockCli = {
+      run: async (args: string[], _cwd: string) => {
+        capturedArgs = args;
+        return {
+          stdout: JSON.stringify([
+            { name: 'my-templates', path: '/home/user/.xcaf/templates' },
+          ]),
+          stderr: '',
+        };
+      },
+    };
+    const model = makeModel([]);
+    const provider = new ObjectExplorerProvider(model, mockCli, '/workspace');
+    const roots = await provider.getChildren();
+    const registryNode = roots.find(c => c.label === 'Registry');
+    assert.ok(registryNode);
+    const registryChildren = await provider.getChildren(registryNode as ExplorerNode);
+    assert.ok(capturedArgs.includes('registry'), 'Should call registry subcommand');
+    assert.ok(capturedArgs.includes('list'), 'Should call list');
+    assert.strictEqual(registryChildren.length, 1);
+    assert.strictEqual(registryChildren[0].label, 'my-templates');
+    assert.strictEqual(registryChildren[0].contextValue, 'registry-entry');
+  });
+
+  test('Registry shows empty message when no entries', async () => {
+    const mockCli = {
+      run: async (_args: string[], _cwd: string) => ({ stdout: '[]', stderr: '' }),
+    };
+    const model = makeModel([]);
+    const provider = new ObjectExplorerProvider(model, mockCli, '/workspace');
+    const roots = await provider.getChildren();
+    const registryNode = roots.find(c => c.label === 'Registry');
+    assert.ok(registryNode);
+    const registryChildren = await provider.getChildren(registryNode as ExplorerNode);
+    assert.strictEqual(registryChildren.length, 1);
+    assert.strictEqual(registryChildren[0].label, 'No registry entries');
+  });
+
+  test('Registry returns empty array when CLI is not available', async () => {
+    const model = makeModel(makeGroups());
+    const provider = new ObjectExplorerProvider(model);
+    const roots = await provider.getChildren();
+    const registryNode = roots.find(c => c.label === 'Registry');
+    assert.ok(registryNode);
+    const registryChildren = await provider.getChildren(registryNode as ExplorerNode);
+    assert.strictEqual(registryChildren.length, 0);
+  });
+
+  test('Registry shows error node when CLI throws', async () => {
+    const mockCli = {
+      run: async (args: string[], _cwd: string): Promise<{ stdout: string; stderr: string }> => {
+        if (args.includes('registry')) {
+          throw new Error('CLI error');
+        }
+        return { stdout: '[]', stderr: '' };
+      },
+    };
+    const model = makeModel(makeGroups());
+    const provider = new ObjectExplorerProvider(model, mockCli, '/workspace');
+    const roots = await provider.getChildren();
+    const registryNode = roots.find(c => c.label === 'Registry');
+    assert.ok(registryNode);
+    const registryChildren = await provider.getChildren(registryNode as ExplorerNode);
+    assert.strictEqual(registryChildren.length, 1);
+    assert.strictEqual(registryChildren[0].label, 'Failed to load registry');
+  });
+
+  test('package.json has registry context menu entries', () => {
+    const pkgPath = path.resolve(__dirname, '..', '..', 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    const menuItems = pkg.contributes.menus['view/item/context'];
+    const registryEntries = menuItems.filter((m: { when: string }) => m.when === 'viewItem == registry-entry');
+    assert.ok(registryEntries.length >= 2, 'Should have at least 2 registry context menu entries');
+    const commands = registryEntries.map((m: { command: string }) => m.command);
+    assert.ok(commands.includes('xcaffold.registryRemove'), 'Missing registryRemove menu');
+    assert.ok(commands.includes('xcaffold.registryInfo'), 'Missing registryInfo menu');
   });
 });

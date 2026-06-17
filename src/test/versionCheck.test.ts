@@ -1,4 +1,6 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
+import * as path from 'path';
 import { parseVersion, isVersionSatisfied } from '../versionCheck';
 
 suite('Version Check', () => {
@@ -60,6 +62,35 @@ suite('Version Check', () => {
         isVersionSatisfied({ major: 0, minor: 5, patch: 0 }, '0.5.1'),
         false
       );
+    });
+
+    test('isVersionSatisfied 0.13.0 meets 0.13.0', () => {
+      assert.strictEqual(
+        isVersionSatisfied({ major: 0, minor: 13, patch: 0 }, '0.13.0'),
+        true
+      );
+    });
+
+    test('isVersionSatisfied 0.12.0 does not meet 0.13.0', () => {
+      assert.strictEqual(
+        isVersionSatisfied({ major: 0, minor: 12, patch: 0 }, '0.13.0'),
+        false
+      );
+    });
+
+    test('isVersionSatisfied 0.14.0 meets 0.13.0', () => {
+      assert.strictEqual(
+        isVersionSatisfied({ major: 0, minor: 14, patch: 0 }, '0.13.0'),
+        true
+      );
+    });
+  });
+
+  suite('package.json contract', () => {
+    test('minCliVersion in package.json is 0.13.0', () => {
+      const pkgPath = path.resolve(__dirname, '..', '..', 'package.json');
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      assert.strictEqual(pkg.xcaffold.minCliVersion, '0.13.0');
     });
   });
 });

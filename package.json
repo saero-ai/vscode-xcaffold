@@ -7,7 +7,7 @@
   "icon": "logo.png",
   "license": "Apache-2.0",
   "xcaffold": {
-    "minCliVersion": "0.7.1"
+    "minCliVersion": "0.13.0"
   },
   "repository": {
     "type": "git",
@@ -146,6 +146,36 @@
         "command": "xcaffold.refreshDashboard",
         "title": "Refresh Status",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "xcaffold.registryList",
+        "title": "xcaffold: Registry List",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.registryAdd",
+        "title": "xcaffold: Registry Add",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.registryRemove",
+        "title": "xcaffold: Registry Remove",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.registryPrune",
+        "title": "xcaffold: Registry Prune",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.registryInfo",
+        "title": "xcaffold: Registry Info",
+        "category": "xcaffold"
+      },
+      {
+        "command": "xcaffold.toggleGlobalScope",
+        "title": "xcaffold: Toggle Global Scope",
+        "category": "xcaffold"
       }
     ],
     "viewsContainers": {
@@ -229,6 +259,16 @@
           "command": "xcaffold.newResource",
           "when": "viewItem == kind-group",
           "group": "navigation@1"
+        },
+        {
+          "command": "xcaffold.registryInfo",
+          "when": "viewItem == registry-entry",
+          "group": "xcaffold@1"
+        },
+        {
+          "command": "xcaffold.registryRemove",
+          "when": "viewItem == registry-entry",
+          "group": "xcaffold@9"
         }
       ],
       "view/title": [

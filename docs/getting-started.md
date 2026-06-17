@@ -91,6 +91,45 @@ To validate only the current file, use **xcaffold: Validate Active File**.
 
 ---
 
+## Features
+
+The extension provides a rich set of capabilities beyond basic editing.
+
+### Dynamic Provider Discovery
+
+Available providers are discovered from the CLI at runtime. The apply picker and status dashboard always reflect the providers your installed CLI version supports, without requiring extension updates.
+
+### Deprecation and Sunset Handling
+
+Deprecated providers display warning badges in the status dashboard and show "(deprecated)" labels in the apply picker. When you select a deprecated provider, a migration prompt offers to switch to the recommended replacement. Sunset providers are automatically hidden from the apply picker.
+
+### JSON-Based CLI Communication
+
+The extension uses structured JSON output from the CLI for reliable data parsing. If you're running an older CLI version that doesn't support JSON output, the extension falls back to text parsing automatically.
+
+### Object Explorer Sections
+
+The Object Explorer sidebar includes three sections:
+
+- **Project** — resources in your workspace
+- **Global** — resources from the global xcaffold directory (`~/.xcaffold/`)
+- **Registry** — resources from directories you've registered with `xcaffold: Registry Add`
+
+### Apply Configuration
+
+The apply command supports additional flags through VS Code workspace settings:
+
+| Setting | CLI Flag | Description |
+|---|---|---|
+| `xcaffold.blueprint` | `--blueprint` | Blueprint name to apply |
+| `xcaffold.outputDir` | `--output-dir` | Custom output directory |
+| `xcaffold.project` | `--project` | Project file path |
+| `xcaffold.varFile` | `--var-file` | Variables file path |
+
+Set these in `.vscode/settings.json` or via the Settings UI under **Extensions > xcaffold**.
+
+---
+
 ## Troubleshooting
 
 ### "CLI not found" error
