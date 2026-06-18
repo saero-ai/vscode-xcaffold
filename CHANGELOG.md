@@ -2,6 +2,18 @@
 
 All notable changes to the xcaffold VS Code extension will be documented in this file.
 
+## [0.6.0](https://github.com/saero-ai/vscode-xcaffold/compare/vscode-xcaffold-v0.5.1...vscode-xcaffold-v0.6.0) (2026-06-18)
+
+
+### Features
+
+* **extension:** add JSON CLI integration, dynamic providers, and registry support ([c09c30c](https://github.com/saero-ai/vscode-xcaffold/commit/c09c30c1371f4f18c210bda2cc9906f4c50f3472))
+
+
+### Bug Fixes
+
+* **extension:** resolve UX issues found during local testing ([f3568b0](https://github.com/saero-ai/vscode-xcaffold/commit/f3568b0d220a74e5c4cf268752bbb97202efab64))
+
 ## [0.5.1](https://github.com/saero-ai/vscode-xcaffold/compare/vscode-xcaffold-v0.5.0...vscode-xcaffold-v0.5.1) (2026-05-20)
 
 
