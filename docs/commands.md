@@ -63,6 +63,28 @@ These commands open dedicated panels inside VS Code.
 
 ---
 
+## Registry Commands
+
+These commands manage the resource registry, which tracks directories containing `.xcaf` resources across your system.
+
+| Command | ID | Description |
+|---|---|---|
+| Registry List | `xcaffold.registryList` | List all registered resource directories |
+| Registry Add | `xcaffold.registryAdd` | Add a resource directory to the registry |
+| Registry Remove | `xcaffold.registryRemove` | Remove a resource from the registry |
+| Registry Prune | `xcaffold.registryPrune` | Remove registry entries that no longer exist on disk |
+| Registry Info | `xcaffold.registryInfo` | Show details about a registered resource (also available via right-click in the Object Explorer registry section) |
+
+---
+
+## Scope Commands
+
+| Command | ID | Description |
+|---|---|---|
+| Toggle Global Scope | `xcaffold.toggleGlobalScope` | Switch between project scope and global scope for apply and list operations |
+
+---
+
 ## Keyboard Shortcuts
 
 | Shortcut | Command | Condition |

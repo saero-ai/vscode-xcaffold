@@ -1,3 +1,25 @@
+/**
+ * Schema Dump Specification
+ *
+ * Proposed CLI command (not yet implemented):
+ *   xcaffold schema dump --json
+ *
+ * Expected output shape:
+ *   {
+ *     "agent": [{ "name": "model", "type": "string", "required": false, "group": "behavior", "description": "..." }, ...],
+ *     "skill": [{ "name": "allowed-tools", "type": "[]string", "required": false, "group": "behavior", "description": "..." }, ...],
+ *     ...
+ *   }
+ *
+ * CI integration (once the CLI command exists):
+ *   1. xcaffold schema dump --json > schema.json
+ *   2. Build script transforms schema.json into a TypeScript constant
+ *   3. Output committed as src/generatedSchemas.ts, replacing FALLBACK_SCHEMAS
+ *
+ * Until the CLI command is implemented, FALLBACK_SCHEMAS below is maintained
+ * manually and must stay in sync with the xcaffold parser's field definitions.
+ */
+
 // src/xcafSchema.ts
 //
 // Reusable schema data source for the xcaf language providers.
@@ -30,6 +52,9 @@ export const KNOWN_KINDS: readonly string[] = [
   'global',
   'policy',
   'blueprint',
+  'context',
+  'memory',
+  'template',
 ];
 
 /** Hardcoded fallback schemas for all known kinds. */
@@ -54,6 +79,9 @@ export const FALLBACK_SCHEMAS: ReadonlyMap<string, SchemaField[]> = new Map([
       { name: 'description', type: 'string', required: false, group: 'identity', description: 'Short description' },
       { name: 'allowed-tools', type: '[]string', required: false, group: 'behavior', description: 'Tools the skill may use' },
       { name: 'activation', type: 'string', required: false, group: 'behavior', description: 'Activation trigger' },
+      { name: 'paths', type: '[]string', required: false, group: 'scoping', description: 'Glob patterns that scope this skill' },
+      { name: 'metadata', type: 'map', required: false, group: 'metadata', description: 'Arbitrary key-value metadata' },
+      { name: 'disable-model-invocation', type: 'bool', required: false, group: 'behavior', description: 'Prevents spawning sub-agents' },
     ],
   ],
   [
@@ -144,6 +172,34 @@ export const FALLBACK_SCHEMAS: ReadonlyMap<string, SchemaField[]> = new Map([
       { name: 'description', type: 'string', required: false, group: 'identity', description: 'Short description' },
       { name: 'includes', type: '[]string', required: false, group: 'behavior', description: 'Included resources' },
       { name: 'targets', type: '[]string', required: false, group: 'behavior', description: 'Target providers' },
+    ],
+  ],
+  [
+    'context',
+    [
+      { name: 'kind', type: 'string', required: true, group: 'identity', description: 'Resource kind' },
+      { name: 'version', type: 'string', required: true, group: 'identity', description: 'Schema version' },
+      { name: 'name', type: 'string', required: true, group: 'identity', description: 'Context name' },
+      { name: 'description', type: 'string', required: false, group: 'identity', description: 'Short description' },
+      { name: 'default', type: 'bool', required: false, group: 'behavior', description: 'Include by default in compilation' },
+    ],
+  ],
+  [
+    'memory',
+    [
+      { name: 'kind', type: 'string', required: true, group: 'identity', description: 'Resource kind' },
+      { name: 'version', type: 'string', required: true, group: 'identity', description: 'Schema version' },
+      { name: 'name', type: 'string', required: true, group: 'identity', description: 'Memory entry name' },
+      { name: 'description', type: 'string', required: false, group: 'identity', description: 'Short description' },
+    ],
+  ],
+  [
+    'template',
+    [
+      { name: 'kind', type: 'string', required: true, group: 'identity', description: 'Resource kind' },
+      { name: 'version', type: 'string', required: true, group: 'identity', description: 'Schema version' },
+      { name: 'name', type: 'string', required: true, group: 'identity', description: 'Template name' },
+      { name: 'description', type: 'string', required: false, group: 'identity', description: 'Short description' },
     ],
   ],
 ]);

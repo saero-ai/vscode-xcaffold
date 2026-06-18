@@ -3,6 +3,7 @@ import * as path from 'path';
 import { XcaffoldCli } from './xcaffoldCli';
 import { parseValidateOutput } from './diagnosticProvider';
 import { getOutputChannel } from './outputChannel';
+import { ApplyProviderEvent, ApplySummaryEvent, ApplyEvent, StatusJSON } from './cliTypes';
 
 export interface CommandDef {
   id: string;
@@ -53,27 +54,158 @@ export function parseApplyOutput(stdout: string): ApplyProgress[] {
 }
 
 /**
- * Provider targets for the apply quick pick.
- * "All Providers" is the default first option (no --target flag).
+ * parseApplyEventLine parses a single NDJSON line from `xcaffold apply --output json`.
+ * Returns an ApplyEvent (provider or summary) or null if the line is not valid NDJSON.
  */
-export const PROVIDER_TARGETS: string[] = [
-  'All Providers',
-  'claude',
-  'cursor',
-  'copilot',
-  'gemini',
-  'antigravity',
-];
+export function parseApplyEventLine(line: string): ApplyEvent | null {
+  const trimmed = line.trim();
+  if (!trimmed || !trimmed.startsWith('{')) {
+    return null;
+  }
+  try {
+    const obj = JSON.parse(trimmed);
+    if (obj.event === 'provider' || obj.event === 'summary') {
+      return obj as ApplyEvent;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Provider metadata returned by fetchProviderInfo for deprecation handling.
+ */
+export interface ProviderTarget {
+  name: string;
+  displayLabel: string;
+  deprecated: boolean;
+  deprecatedBy: string;
+}
+
+/**
+ * fetchProviderTargets discovers available providers dynamically via
+ * `xcaffold status --json`. Falls back to ['All Providers'] on error.
+ * Excludes sunset providers from the list.
+ */
+export async function fetchProviderTargets(
+  cli: { run(args: string[], cwd: string): Promise<{ stdout: string }> },
+  cwd: string,
+): Promise<string[]> {
+  try {
+    const result = await cli.run(['status', '--json'], cwd);
+    const json: StatusJSON = JSON.parse(result.stdout);
+    const names = json.providers
+      .filter(p => p.status !== 'sunset')
+      .map(p =>
+        p.status === 'deprecated' ? `${p.name} (deprecated)` : p.name
+      );
+    return ['All Providers', ...names];
+  } catch {
+    return fetchProviderTargetsFromText(cli, cwd);
+  }
+}
+
+async function fetchProviderTargetsFromText(
+  cli: { run(args: string[], cwd: string): Promise<{ stdout: string }> },
+  cwd: string,
+): Promise<string[]> {
+  try {
+    const result = await cli.run(['status'], cwd);
+    const names = parseProviderNamesFromStatus(result.stdout);
+    return ['All Providers', ...names];
+  } catch {
+    return ['All Providers'];
+  }
+}
+
+export function parseProviderNamesFromStatus(stdout: string): string[] {
+  const names: string[] = [];
+  const providerRe = /^\s{2}(\S+)\s+(\d+)\s+(ok|drifted|error|stale)/;
+  for (const line of stdout.split('\n')) {
+    const m = providerRe.exec(line);
+    if (m && m[1] !== 'PROVIDER') {
+      names.push(m[1]);
+    }
+  }
+  return names;
+}
+
+/**
+ * fetchProviderInfo returns full provider metadata for deprecation checks.
+ * Excludes sunset providers.
+ */
+export async function fetchProviderInfo(
+  cli: { run(args: string[], cwd: string): Promise<{ stdout: string }> },
+  cwd: string,
+): Promise<ProviderTarget[]> {
+  try {
+    const result = await cli.run(['status', '--json'], cwd);
+    const json: StatusJSON = JSON.parse(result.stdout);
+    return json.providers
+      .filter(p => p.status !== 'sunset')
+      .map(p => ({
+        name: p.name,
+        displayLabel: p.displayLabel,
+        deprecated: p.status === 'deprecated',
+        deprecatedBy: p.deprecatedBy,
+      }));
+  } catch {
+    try {
+      const result = await cli.run(['status'], cwd);
+      return parseProviderNamesFromStatus(result.stdout).map(name => ({
+        name,
+        displayLabel: name,
+        deprecated: false,
+        deprecatedBy: '',
+      }));
+    } catch {
+      return [];
+    }
+  }
+}
+
+/**
+ * Options for the xcaffold apply command.
+ */
+export interface ApplyOptions {
+  globalScope?: boolean;
+  blueprint?: string;
+  outputDir?: string;
+  project?: string;
+  varFile?: string;
+}
 
 /**
  * buildApplyArgs constructs CLI arguments for apply.
  * Returns ['apply'] for "All Providers", or ['apply', '--target', provider] otherwise.
+ * Appends optional flags (--global, --blueprint, --output-dir, --project, --var-file)
+ * when their corresponding option values are set.
  */
-export function buildApplyArgs(selection: string): string[] {
-  if (selection === 'All Providers') {
-    return ['apply'];
+export function buildApplyArgs(selection: string, options?: ApplyOptions): string[] {
+  const cleanSelection = selection.replace(' (deprecated)', '');
+  const args: string[] = [];
+  if (cleanSelection === 'All Providers') {
+    args.push('apply');
+  } else {
+    args.push('apply', '--target', cleanSelection);
   }
-  return ['apply', '--target', selection];
+  if (options?.globalScope) {
+    args.push('--global');
+  }
+  if (options?.blueprint) {
+    args.push('--blueprint', options.blueprint);
+  }
+  if (options?.outputDir) {
+    args.push('--output-dir', options.outputDir);
+  }
+  if (options?.project) {
+    args.push('--project', options.project);
+  }
+  if (options?.varFile) {
+    args.push('--var-file', options.varFile);
+  }
+  return args;
 }
 
 /**
@@ -163,7 +295,8 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
         return;
       }
 
-      const selection = await vscode.window.showQuickPick(PROVIDER_TARGETS, {
+      const targets = await fetchProviderTargets(cli, workspaceFolder);
+      const selection = await vscode.window.showQuickPick(targets, {
         placeHolder: 'Select target provider (or All Providers)',
         title: 'xcaffold: Apply to which provider?',
       });
@@ -172,7 +305,37 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
         return; // user cancelled
       }
 
-      const args = buildApplyArgs(selection);
+      let applySelection = selection;
+      const cleanName = selection.replace(' (deprecated)', '');
+      if (cleanName !== 'All Providers') {
+        const providerInfo = await fetchProviderInfo(cli, workspaceFolder);
+        const selected = providerInfo.find(p => p.name === cleanName);
+        if (selected?.deprecated) {
+          const action = await vscode.window.showWarningMessage(
+            `Provider "${selected.name}" is deprecated. Use "${selected.deprecatedBy}" instead.`,
+            { modal: true },
+            'Migrate',
+            'Continue Anyway',
+          );
+          if (!action) {
+            return;
+          }
+          if (action === 'Migrate') {
+            applySelection = selected.deprecatedBy;
+          }
+        }
+      }
+
+      const config = vscode.workspace.getConfiguration('xcaffold');
+      const applyOpts: ApplyOptions = {
+        globalScope: config.get<boolean>('globalScope', false),
+        blueprint: config.get<string>('blueprint', '') || undefined,
+        outputDir: config.get<string>('outputDir', '') || undefined,
+        project: config.get<string>('project', '') || undefined,
+        varFile: config.get<string>('varFile', '') || undefined,
+      };
+      const baseArgs = buildApplyArgs(applySelection, applyOpts);
+      const jsonArgs = [...baseArgs, '--json'];
 
       await vscode.window.withProgress(
         {
@@ -182,7 +345,9 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
         },
         async (progress) => {
           const completed: ApplyProgress[] = [];
+          let args = jsonArgs;
           let lineBuffer = '';
+          let warnedOnce = false;
 
           try {
             await cli.run(args, workspaceFolder, (data) => {
@@ -192,21 +357,58 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
               lineBuffer = lines.pop() ?? '';
 
               for (const line of lines) {
-                const result = parseApplyLine(line);
-                if (result) {
-                  completed.push(result);
-                  progress.report({
-                    message: `${result.provider}: ${result.fileCount} files`,
-                  });
+                const event = parseApplyEventLine(line);
+                if (event) {
+                  if (event.event === 'provider') {
+                    const pe = event as ApplyProviderEvent;
+                    completed.push({
+                      provider: pe.provider,
+                      fileCount: pe.fileCount,
+                    });
+                    progress.report({
+                      message: `${pe.provider}: ${pe.fileCount} files`,
+                    });
+                  }
+                } else {
+                  if (!warnedOnce && line.trim()) {
+                    vscode.window.showWarningMessage(
+                      'xcaffold CLI does not support --json output. Some features may be limited. Upgrade to v0.14.0 or later.',
+                    );
+                    warnedOnce = true;
+                  }
+                  const result = parseApplyLine(line);
+                  if (result) {
+                    completed.push(result);
+                    progress.report({
+                      message: `${result.provider}: ${result.fileCount} files`,
+                    });
+                  }
                 }
               }
             });
 
             // Process any remaining buffered line
             if (lineBuffer.trim()) {
-              const result = parseApplyLine(lineBuffer);
-              if (result) {
-                completed.push(result);
+              const event = parseApplyEventLine(lineBuffer);
+              if (event) {
+                if (event.event === 'provider') {
+                  const pe = event as ApplyProviderEvent;
+                  completed.push({
+                    provider: pe.provider,
+                    fileCount: pe.fileCount,
+                  });
+                }
+              } else {
+                if (!warnedOnce && lineBuffer.trim()) {
+                  vscode.window.showWarningMessage(
+                    'xcaffold CLI does not support --json output. Some features may be limited. Upgrade to v0.14.0 or later.',
+                  );
+                  warnedOnce = true;
+                }
+                const result = parseApplyLine(lineBuffer);
+                if (result) {
+                  completed.push(result);
+                }
               }
             }
 
@@ -225,12 +427,30 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
           } catch (err: unknown) {
             const message =
               err instanceof Error ? err.message : String(err);
-            const action = await vscode.window.showErrorMessage(
-              `xcaffold error: ${message}`,
-              'Show Output',
-            );
-            if (action === 'Show Output') {
-              getOutputChannel().show();
+            if (message.includes('unknown flag: --json') && args === jsonArgs) {
+              args = baseArgs;
+              try {
+                await cli.run(args, workspaceFolder);
+                const summary = `apply completed for ${selection}`;
+                vscode.window.showInformationMessage(`xcaffold: ${summary}.`);
+              } catch (retryErr: unknown) {
+                const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+                const action = await vscode.window.showErrorMessage(
+                  `xcaffold error: ${retryMsg}`,
+                  'Show Output',
+                );
+                if (action === 'Show Output') {
+                  getOutputChannel().show();
+                }
+              }
+            } else {
+              const action = await vscode.window.showErrorMessage(
+                `xcaffold error: ${message}`,
+                'Show Output',
+              );
+              if (action === 'Show Output') {
+                getOutputChannel().show();
+              }
             }
           }
 
