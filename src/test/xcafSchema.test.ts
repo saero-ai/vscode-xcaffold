@@ -204,4 +204,58 @@ suite('xcafSchema', () => {
       }
     });
   });
+
+  suite('KNOWN_KINDS and FALLBACK_SCHEMAS completeness', () => {
+    test('KNOWN_KINDS includes context', () => {
+      assert.ok(KNOWN_KINDS.includes('context'));
+    });
+
+    test('KNOWN_KINDS includes memory', () => {
+      assert.ok(KNOWN_KINDS.includes('memory'));
+    });
+
+    test('KNOWN_KINDS includes template', () => {
+      assert.ok(KNOWN_KINDS.includes('template'));
+    });
+
+    test('KNOWN_KINDS has 14 entries', () => {
+      assert.strictEqual(KNOWN_KINDS.length, 14);
+    });
+
+    test('FALLBACK_SCHEMAS has context', () => {
+      assert.ok(FALLBACK_SCHEMAS.has('context'));
+      assert.ok(FALLBACK_SCHEMAS.get('context')!.length > 0);
+    });
+
+    test('FALLBACK_SCHEMAS has memory', () => {
+      assert.ok(FALLBACK_SCHEMAS.has('memory'));
+      assert.ok(FALLBACK_SCHEMAS.get('memory')!.length > 0);
+    });
+
+    test('FALLBACK_SCHEMAS has template', () => {
+      assert.ok(FALLBACK_SCHEMAS.has('template'));
+      assert.ok(FALLBACK_SCHEMAS.get('template')!.length > 0);
+    });
+
+    test('skill schema has paths field', () => {
+      const skillSchema = FALLBACK_SCHEMAS.get('skill')!;
+      const pathsField = skillSchema.find((f) => f.name === 'paths');
+      assert.ok(pathsField, 'skill schema should have paths field');
+      assert.strictEqual(pathsField?.type, '[]string');
+    });
+
+    test('skill schema has metadata field', () => {
+      const skillSchema = FALLBACK_SCHEMAS.get('skill')!;
+      const metadataField = skillSchema.find((f) => f.name === 'metadata');
+      assert.ok(metadataField, 'skill schema should have metadata field');
+      assert.strictEqual(metadataField?.type, 'map');
+    });
+
+    test('skill schema has disable-model-invocation field', () => {
+      const skillSchema = FALLBACK_SCHEMAS.get('skill')!;
+      const disableField = skillSchema.find((f) => f.name === 'disable-model-invocation');
+      assert.ok(disableField, 'skill schema should have disable-model-invocation field');
+      assert.strictEqual(disableField?.type, 'bool');
+    });
+  });
 });

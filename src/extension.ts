@@ -276,6 +276,124 @@ function registerCommands(
 }
 
 /**
+ * registerRegistryCommands registers the registry subcommands (list, add, remove, prune, info).
+ */
+function registerRegistryCommands(
+  context: vscode.ExtensionContext,
+  cli: XcaffoldCli,
+): void {
+  const registryListCmd = vscode.commands.registerCommand(
+    'xcaffold.registryList',
+    async () => {
+      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsFolder) {
+        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
+        return;
+      }
+      try {
+        const result = await cli.run(['registry', 'list'], wsFolder);
+        vscode.window.showInformationMessage(result.stdout || 'Registry is empty.');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`xcaffold registry error: ${message}`);
+      }
+    },
+  );
+
+  const registryAddCmd = vscode.commands.registerCommand(
+    'xcaffold.registryAdd',
+    async () => {
+      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsFolder) {
+        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
+        return;
+      }
+      const resourcePath = await vscode.window.showInputBox({ prompt: 'Path to xcaf resource or directory' });
+      if (!resourcePath) {
+        return;
+      }
+      try {
+        const result = await cli.run(['registry', 'add', resourcePath], wsFolder);
+        vscode.window.showInformationMessage(result.stdout || 'Resource added to registry.');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`xcaffold registry error: ${message}`);
+      }
+    },
+  );
+
+  const registryRemoveCmd = vscode.commands.registerCommand(
+    'xcaffold.registryRemove',
+    async () => {
+      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsFolder) {
+        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
+        return;
+      }
+      const name = await vscode.window.showInputBox({ prompt: 'Resource name to remove' });
+      if (!name) {
+        return;
+      }
+      try {
+        const result = await cli.run(['registry', 'remove', name], wsFolder);
+        vscode.window.showInformationMessage(result.stdout || 'Resource removed from registry.');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`xcaffold registry error: ${message}`);
+      }
+    },
+  );
+
+  const registryPruneCmd = vscode.commands.registerCommand(
+    'xcaffold.registryPrune',
+    async () => {
+      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsFolder) {
+        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
+        return;
+      }
+      try {
+        const result = await cli.run(['registry', 'prune'], wsFolder);
+        vscode.window.showInformationMessage(result.stdout || 'Registry pruned.');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`xcaffold registry error: ${message}`);
+      }
+    },
+  );
+
+  const registryInfoCmd = vscode.commands.registerCommand(
+    'xcaffold.registryInfo',
+    async () => {
+      const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsFolder) {
+        vscode.window.showErrorMessage('xcaffold: No workspace folder open.');
+        return;
+      }
+      const name = await vscode.window.showInputBox({ prompt: 'Resource name' });
+      if (!name) {
+        return;
+      }
+      try {
+        const result = await cli.run(['registry', 'info', name], wsFolder);
+        vscode.window.showInformationMessage(result.stdout || 'No info available.');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`xcaffold registry error: ${message}`);
+      }
+    },
+  );
+
+  context.subscriptions.push(
+    registryListCmd,
+    registryAddCmd,
+    registryRemoveCmd,
+    registryPruneCmd,
+    registryInfoCmd,
+  );
+}
+
+/**
  * activate is called when the extension is first loaded.
  */
 export async function activate(
@@ -499,7 +617,24 @@ export async function activate(
   // 8. Register custom commands
   const { refreshCommand, graphCommand, initWizardCommand, importPickerCommand, diffCommand, statusDashCommand, schemaViewerCommand } = registerCommands(context, cli, treeProvider, scheduleModelRefresh, workspaceFolderPath, statusBar, dataSource, xcafIndex);
 
-  // 8b. Register New Resource wizard (replaces the stub in commandProvider)
+  // 8a. Register registry commands
+  registerRegistryCommands(context, cli);
+
+  // 8b. Register global scope toggle command
+  const toggleGlobalCmd = vscode.commands.registerCommand(
+    'xcaffold.toggleGlobalScope',
+    async () => {
+      const cfg = vscode.workspace.getConfiguration('xcaffold');
+      const current = cfg.get<boolean>('globalScope', false);
+      await cfg.update('globalScope', !current, vscode.ConfigurationTarget.Workspace);
+      vscode.window.showInformationMessage(
+        `xcaffold: Global scope ${!current ? 'enabled' : 'disabled'}.`,
+      );
+    },
+  );
+  context.subscriptions.push(toggleGlobalCmd);
+
+  // 8c. Register New Resource wizard (replaces the stub in commandProvider)
   const newResourceCommand = vscode.commands.registerCommand(
     'xcaffold.newResource',
     () => {
