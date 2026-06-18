@@ -102,8 +102,33 @@ export async function fetchProviderTargets(
       );
     return ['All Providers', ...names];
   } catch {
+    return fetchProviderTargetsFromText(cli, cwd);
+  }
+}
+
+async function fetchProviderTargetsFromText(
+  cli: { run(args: string[], cwd: string): Promise<{ stdout: string }> },
+  cwd: string,
+): Promise<string[]> {
+  try {
+    const result = await cli.run(['status'], cwd);
+    const names = parseProviderNamesFromStatus(result.stdout);
+    return ['All Providers', ...names];
+  } catch {
     return ['All Providers'];
   }
+}
+
+export function parseProviderNamesFromStatus(stdout: string): string[] {
+  const names: string[] = [];
+  const providerRe = /^\s{2}(\S+)\s+(\d+)\s+(ok|drifted|error|stale)/;
+  for (const line of stdout.split('\n')) {
+    const m = providerRe.exec(line);
+    if (m && m[1] !== 'PROVIDER') {
+      names.push(m[1]);
+    }
+  }
+  return names;
 }
 
 /**
@@ -126,7 +151,17 @@ export async function fetchProviderInfo(
         deprecatedBy: p.deprecatedBy,
       }));
   } catch {
-    return [];
+    try {
+      const result = await cli.run(['status'], cwd);
+      return parseProviderNamesFromStatus(result.stdout).map(name => ({
+        name,
+        displayLabel: name,
+        deprecated: false,
+        deprecatedBy: '',
+      }));
+    } catch {
+      return [];
+    }
   }
 }
 
@@ -151,9 +186,9 @@ export function buildApplyArgs(selection: string, options?: ApplyOptions): strin
   const cleanSelection = selection.replace(' (deprecated)', '');
   const args: string[] = [];
   if (cleanSelection === 'All Providers') {
-    args.push('apply', '--json');
+    args.push('apply');
   } else {
-    args.push('apply', '--target', cleanSelection, '--json');
+    args.push('apply', '--target', cleanSelection);
   }
   if (options?.globalScope) {
     args.push('--global');
@@ -299,7 +334,8 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
         project: config.get<string>('project', '') || undefined,
         varFile: config.get<string>('varFile', '') || undefined,
       };
-      const args = buildApplyArgs(applySelection, applyOpts);
+      const baseArgs = buildApplyArgs(applySelection, applyOpts);
+      const jsonArgs = [...baseArgs, '--json'];
 
       await vscode.window.withProgress(
         {
@@ -309,6 +345,7 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
         },
         async (progress) => {
           const completed: ApplyProgress[] = [];
+          let args = jsonArgs;
           let lineBuffer = '';
           let warnedOnce = false;
 
@@ -390,12 +427,30 @@ export function registerCommandProvider(cli: XcaffoldCli): vscode.Disposable {
           } catch (err: unknown) {
             const message =
               err instanceof Error ? err.message : String(err);
-            const action = await vscode.window.showErrorMessage(
-              `xcaffold error: ${message}`,
-              'Show Output',
-            );
-            if (action === 'Show Output') {
-              getOutputChannel().show();
+            if (message.includes('unknown flag: --json') && args === jsonArgs) {
+              args = baseArgs;
+              try {
+                await cli.run(args, workspaceFolder);
+                const summary = `apply completed for ${selection}`;
+                vscode.window.showInformationMessage(`xcaffold: ${summary}.`);
+              } catch (retryErr: unknown) {
+                const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+                const action = await vscode.window.showErrorMessage(
+                  `xcaffold error: ${retryMsg}`,
+                  'Show Output',
+                );
+                if (action === 'Show Output') {
+                  getOutputChannel().show();
+                }
+              }
+            } else {
+              const action = await vscode.window.showErrorMessage(
+                `xcaffold error: ${message}`,
+                'Show Output',
+              );
+              if (action === 'Show Output') {
+                getOutputChannel().show();
+              }
             }
           }
 

@@ -59,32 +59,32 @@
     "commands": [
       {
         "command": "xcaffold.apply",
-        "title": "xcaffold: Apply Manifest",
+        "title": "Apply Manifest",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.validate",
-        "title": "xcaffold: Validate Manifest",
+        "title": "Validate Manifest",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.status",
-        "title": "xcaffold: Show Project Status",
+        "title": "Show Project Status",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.list",
-        "title": "xcaffold: List Resources",
+        "title": "List Resources",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.graph",
-        "title": "xcaffold: Show Resource Graph",
+        "title": "Show Resource Graph",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.import",
-        "title": "xcaffold: Import from Providers",
+        "title": "Import from Providers",
         "category": "xcaffold"
       },
       {
@@ -94,52 +94,52 @@
       },
       {
         "command": "xcaffold.validateFile",
-        "title": "xcaffold: Validate Active File",
+        "title": "Validate Active File",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.initWizard",
-        "title": "xcaffold: Initialize Project (Wizard)",
+        "title": "Initialize Project (Wizard)",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.importPicker",
-        "title": "xcaffold: Import from Providers (Picker)",
+        "title": "Import from Providers (Picker)",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.diff",
-        "title": "xcaffold: Diff Preview",
+        "title": "Diff Preview",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.statusDash",
-        "title": "xcaffold: Status Dashboard",
+        "title": "Status Dashboard",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.schemaViewer",
-        "title": "xcaffold: Schema Viewer",
+        "title": "Schema Viewer",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.openResource",
-        "title": "xcaffold: Open File",
+        "title": "Open File",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.findReferences",
-        "title": "xcaffold: Find References",
+        "title": "Find References",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.newResource",
-        "title": "xcaffold: New Resource...",
+        "title": "New Resource...",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.deleteResource",
-        "title": "xcaffold: Delete Resource",
+        "title": "Delete Resource",
         "category": "xcaffold"
       },
       {
@@ -149,32 +149,32 @@
       },
       {
         "command": "xcaffold.registryList",
-        "title": "xcaffold: Registry List",
+        "title": "Registry List",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.registryAdd",
-        "title": "xcaffold: Registry Add",
+        "title": "Registry Add",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.registryRemove",
-        "title": "xcaffold: Registry Remove",
+        "title": "Registry Remove",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.registryPrune",
-        "title": "xcaffold: Registry Prune",
+        "title": "Registry Prune",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.registryInfo",
-        "title": "xcaffold: Registry Info",
+        "title": "Registry Info",
         "category": "xcaffold"
       },
       {
         "command": "xcaffold.toggleGlobalScope",
-        "title": "xcaffold: Toggle Global Scope",
+        "title": "Toggle Global Scope",
         "category": "xcaffold"
       }
     ],
@@ -212,6 +212,11 @@
           "type": "string",
           "default": "xcaffold",
           "description": "Path to the xcaffold binary. Defaults to 'xcaffold' on PATH."
+        },
+        "xcaffold.globalScope": {
+          "type": "boolean",
+          "default": false,
+          "description": "When enabled, xcaffold commands operate on the user-wide global config (~/.xcaffold/xcaf/) instead of the workspace project."
         }
       }
     },

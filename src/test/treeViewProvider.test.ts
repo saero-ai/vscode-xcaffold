@@ -1415,8 +1415,9 @@ suite('Global section', () => {
     const globalChildren = await provider.getChildren(globalNode as ExplorerNode);
     assert.ok(capturedArgs.includes('--global'), 'Should pass --global flag');
     assert.ok(capturedArgs.includes('--json'), 'Should pass --json flag');
-    assert.strictEqual(globalChildren.length, 1);
+    assert.strictEqual(globalChildren.length, 2);
     assert.strictEqual(globalChildren[0].label, 'global-agent');
+    assert.strictEqual(globalChildren[1].label, 'Open Global Config Folder');
   });
 
   test('Global node returns empty array when CLI is not available', async () => {
@@ -1456,8 +1457,9 @@ suite('Global section', () => {
     const globalNode = roots.find(c => c.label === 'Global');
     assert.ok(globalNode);
     const globalChildren = await provider.getChildren(globalNode as ExplorerNode);
-    assert.strictEqual(globalChildren.length, 1);
+    assert.strictEqual(globalChildren.length, 2);
     assert.strictEqual(globalChildren[0].label, 'fallback-agent');
+    assert.strictEqual(globalChildren[1].label, 'Open Global Config Folder');
   });
 
   test('Global node shows error node when both CLI calls fail', async () => {
@@ -1476,7 +1478,7 @@ suite('Global section', () => {
     assert.ok(globalNode);
     const globalChildren = await provider.getChildren(globalNode as ExplorerNode);
     assert.strictEqual(globalChildren.length, 1);
-    assert.strictEqual(globalChildren[0].label, 'Failed to load global resources');
+    assert.strictEqual(globalChildren[0].label, 'No global resources found');
   });
 });
 
@@ -1501,7 +1503,7 @@ suite('Registry section', () => {
         capturedArgs = args;
         return {
           stdout: JSON.stringify([
-            { name: 'my-templates', path: '/home/user/.xcaf/templates' },
+            { Name: 'my-templates', Path: '/home/user/.xcaf/templates' },
           ]),
           stderr: '',
         };

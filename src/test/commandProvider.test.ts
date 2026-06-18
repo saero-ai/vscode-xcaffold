@@ -9,6 +9,7 @@ import {
   parseApplyLine,
   parseApplyOutput,
   parseApplyEventLine,
+  parseProviderNamesFromStatus,
   ApplyOptions,
 } from '../commandProvider';
 import { ApplyProviderEvent, ApplySummaryEvent } from '../cliTypes';
@@ -93,27 +94,70 @@ suite('fetchProviderTargets', () => {
     assert.ok(targets.includes('antigravity (deprecated)'));
     assert.ok(!targets.includes('antigravity'));
   });
+
+  test('falls back to text parsing when --json not supported', async () => {
+    const mockCli = {
+      run: async (args: string[]) => {
+        if (args.includes('--json')) {
+          throw new Error('unknown flag: --json');
+        }
+        return {
+          stdout: [
+            'my-project  .  last applied 5 minutes ago',
+            '',
+            '  PROVIDER       FILES   STATUS',
+            '  claude            30   ok synced',
+            '  antigravity       29   ok synced',
+            '',
+            '  Sources  21 .xcaf files',
+          ].join('\n'),
+        };
+      },
+    };
+    const targets = await fetchProviderTargets(mockCli, '/workspace');
+    assert.deepStrictEqual(targets, ['All Providers', 'claude', 'antigravity']);
+  });
+});
+
+suite('parseProviderNamesFromStatus', () => {
+  test('parses provider names from text status output', () => {
+    const stdout = [
+      'my-project  .  last applied 5 minutes ago',
+      '',
+      '  PROVIDER       FILES   STATUS',
+      '  claude            30   ok synced',
+      '  antigravity       29   ok synced',
+      '',
+      '  Sources  21 .xcaf files',
+    ].join('\n');
+    const names = parseProviderNamesFromStatus(stdout);
+    assert.deepStrictEqual(names, ['claude', 'antigravity']);
+  });
+
+  test('returns empty array for empty output', () => {
+    assert.deepStrictEqual(parseProviderNamesFromStatus(''), []);
+  });
 });
 
 suite('Target-filtered apply', () => {
-  test('buildApplyArgs returns apply with --json for All Providers', () => {
+  test('buildApplyArgs returns apply for All Providers', () => {
     const args = buildApplyArgs('All Providers');
-    assert.deepStrictEqual(args, ['apply', '--json']);
+    assert.deepStrictEqual(args, ['apply']);
   });
 
-  test('buildApplyArgs returns --target flag with --json for specific provider', () => {
+  test('buildApplyArgs returns --target flag for specific provider', () => {
     const args = buildApplyArgs('claude');
-    assert.deepStrictEqual(args, ['apply', '--target', 'claude', '--json']);
+    assert.deepStrictEqual(args, ['apply', '--target', 'claude']);
   });
 
-  test('buildApplyArgs returns --target flag with --json for gemini', () => {
+  test('buildApplyArgs returns --target flag for gemini', () => {
     const args = buildApplyArgs('gemini');
-    assert.deepStrictEqual(args, ['apply', '--target', 'gemini', '--json']);
+    assert.deepStrictEqual(args, ['apply', '--target', 'gemini']);
   });
 
   test('strips (deprecated) suffix from provider name', () => {
     const args = buildApplyArgs('antigravity (deprecated)');
-    assert.deepStrictEqual(args, ['apply', '--target', 'antigravity', '--json']);
+    assert.deepStrictEqual(args, ['apply', '--target', 'antigravity']);
   });
 });
 
@@ -400,7 +444,7 @@ suite('buildApplyArgs global scope', () => {
   test('includes --global when globalScope is true', () => {
     const args = buildApplyArgs('claude', { globalScope: true });
     assert.ok(args.includes('--global'));
-    assert.deepStrictEqual(args, ['apply', '--target', 'claude', '--json', '--global']);
+    assert.deepStrictEqual(args, ['apply', '--target', 'claude', '--global']);
   });
 
   test('omits --global when globalScope is false', () => {
@@ -415,7 +459,7 @@ suite('buildApplyArgs global scope', () => {
 
   test('includes --global for All Providers', () => {
     const args = buildApplyArgs('All Providers', { globalScope: true });
-    assert.deepStrictEqual(args, ['apply', '--json', '--global']);
+    assert.deepStrictEqual(args, ['apply', '--global']);
   });
 });
 

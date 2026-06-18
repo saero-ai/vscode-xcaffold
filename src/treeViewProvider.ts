@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { ListResourceJSON } from './cliTypes';
@@ -219,7 +221,7 @@ export function parseListOutput(stdout: string): Map<string, ResourceInfo[]> {
     }
     if (currentKind) {
       const nameMatch = nameRe.exec(line);
-      if (nameMatch) {
+      if (nameMatch && nameMatch[1] !== '(none)') {
         const list = grouped.get(currentKind)!;
         list.push({ kind: currentKind, name: nameMatch[1], description: '' });
       }
@@ -503,24 +505,60 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
         stdout = result.stdout;
       }
       const grouped = parseListData(stdout);
+      if (grouped.size === 0) {
+        return [new ExplorerNode(
+          'No global resources',
+          'property',
+          vscode.TreeItemCollapsibleState.None,
+          { type: 'property', fieldLabel: 'info', value: 'Add agents, rules, or skills to ~/.xcaffold/xcaf/' },
+        )];
+      }
       const nodes: ExplorerNode[] = [];
+      const globalBase = path.join(os.homedir(), '.xcaffold', 'xcaf');
       for (const [kind, resources] of Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))) {
         for (const r of resources) {
-          nodes.push(new ExplorerNode(
+          const node = new ExplorerNode(
             r.name,
             'resource',
             vscode.TreeItemCollapsibleState.None,
             { type: 'resource', kind, name: r.name, baseManifest: '', overrideCount: 0 },
-          ));
+          );
+          node.description = kind;
+          const candidates = [
+            path.join(globalBase, kind, r.name, r.name + '.xcaf'),
+            path.join(globalBase, kind + 's', r.name, r.name + '.xcaf'),
+            path.join(globalBase, kind, r.name + '.xcaf'),
+          ];
+          const resolved = candidates.find(c => fs.existsSync(c));
+          if (resolved) {
+            node.command = {
+              command: 'vscode.open',
+              title: 'Open Global Resource',
+              arguments: [vscode.Uri.file(resolved)],
+            };
+          }
+          nodes.push(node);
         }
       }
+      const openFolder = new ExplorerNode(
+        'Open Global Config Folder',
+        'property',
+        vscode.TreeItemCollapsibleState.None,
+        { type: 'property', fieldLabel: 'action', value: globalBase },
+      );
+      openFolder.command = {
+        command: 'vscode.openFolder',
+        title: 'Open Global Config',
+        arguments: [vscode.Uri.file(globalBase), { forceNewWindow: true }],
+      };
+      nodes.push(openFolder);
       return nodes;
     } catch {
       return [new ExplorerNode(
-        'Failed to load global resources',
+        'No global resources found',
         'property',
         vscode.TreeItemCollapsibleState.None,
-        { type: 'property', fieldLabel: 'error', value: 'CLI error' },
+        { type: 'property', fieldLabel: 'info', value: 'Run "xcaffold init --global" to set up global config' },
       )];
     }
   }
@@ -530,6 +568,7 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
       return [];
     }
     try {
+      try { await this.cli.run(['registry', 'prune'], this.workspaceFolder); } catch { /* best-effort */ }
       const result = await this.cli.run(['registry', 'list', '--json'], this.workspaceFolder);
       const stdout = result.stdout.trim();
       if (!stdout || stdout === '[]') {
@@ -540,15 +579,22 @@ export class ObjectExplorerProvider implements vscode.TreeDataProvider<ExplorerN
           { type: 'property', fieldLabel: 'info', value: 'Run "xcaffold: Registry Add" to add entries' },
         )];
       }
-      const entries: Array<{ name: string; path: string }> = JSON.parse(stdout);
+      const entries: Array<{ Name: string; Path: string }> = JSON.parse(stdout);
       return entries.map(e => {
         const node = new ExplorerNode(
-          e.name,
+          e.Name,
           'resource',
           vscode.TreeItemCollapsibleState.None,
-          { type: 'resource', kind: 'registry', name: e.name, baseManifest: e.path || '', overrideCount: 0 },
+          { type: 'resource', kind: 'registry', name: e.Name, baseManifest: e.Path || '', overrideCount: 0 },
         );
         node.contextValue = 'registry-entry';
+        node.description = e.Path;
+        node.tooltip = `${e.Name}\n${e.Path}`;
+        node.command = {
+          command: 'vscode.openFolder',
+          title: 'Open Project',
+          arguments: [vscode.Uri.file(e.Path), { forceNewWindow: true }],
+        };
         return node;
       });
     } catch {
