@@ -331,7 +331,7 @@
     "@types/mocha": "^10.0.10",
     "@types/mock-require": "^3.0.0",
     "@types/vscode": "^1.85.0",
-    "@typescript-eslint/eslint-plugin": "^8.59.4",
+    "@typescript-eslint/eslint-plugin": "^8.61.1",
     "@typescript-eslint/parser": "^8.59.4",
     "@vscode/vsce": "^3.9.1",
     "d3": "^7.9.0",
